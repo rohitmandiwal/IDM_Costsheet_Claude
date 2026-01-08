@@ -1,0 +1,29 @@
+# Dependency directories
+node_modules/
+
+# dotenv environment variables file
+.env
+.env*.local
+
+# Editor directories and files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# macOS files
+.DS_Store
+
+# Yarn Integrity file
+.yarn-integrity
+
+# Other common ignore files
+tmp/
+*.bak
+*.swp
+*~
+~*
+.npmrc
