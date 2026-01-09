@@ -161,7 +161,7 @@ export function ApproverDashboard() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge className={approval.type === 'Technical' ? 'bg-[#0B61FF] text-white' : 'bg-gray-500 text-white'}>
-                          {approval.type === 'Technical' ? 'TECH' : 'COMM'}
+                          {approval.type === 'Technical' ? 'TECH' : 'NON-TECH'}
                         </Badge>
                         <Badge className="bg-[#FEF3C7] text-[#F39C12] border-[#F39C12]/20">
                           {approval.status}
@@ -219,7 +219,7 @@ export function ApproverDashboard() {
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-gray-900">{draft.costSheetNumber}</span>
                           <Badge className={draft.type === 'Technical' ? 'bg-[#0B61FF] text-white' : 'bg-gray-500 text-white'}>
-                            {draft.type === 'Technical' ? 'TECH' : 'COMM'}
+                            {draft.type === 'Technical' ? 'TECH' : 'NON-TECH'}
                           </Badge>
                         </div>
                         <div className="text-sm text-gray-600">

@@ -5,6 +5,9 @@ import { DashboardLayout } from './components/layout/DashboardLayout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { AdminSettingsPage } from './pages/AdminSettingsPage';
+import { CreateCostSheetPage } from './pages/CreateCostSheetPage';
+import { PRDetailsPage } from './pages/PRDetailsPage';
+import { CostSheetEditorPage } from './pages/CostSheetEditorPage';
 
 function App() {
   return (
@@ -29,7 +32,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <div className="text-2xl font-bold">PR Entry Page (Coming Soon)</div>
+                  <CreateCostSheetPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -52,6 +55,28 @@ function App() {
               <ProtectedRoute allowedRoles={['Admin']}>
                 <DashboardLayout>
                   <AdminSettingsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/pr-details"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <PRDetailsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/cost-sheet-editor"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <CostSheetEditorPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }

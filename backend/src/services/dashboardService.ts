@@ -7,29 +7,31 @@ interface RecentPR {
   description: string;
   lineItems: number;
   plant: string;
-  type: 'Technical' | 'Non-Technical';
+  requirement_type: 'Technical' | 'Non-Technical';
   createdAt: string;
 }
 
 interface PendingApproval {
   id: string;
-  cost_sheet_number: string;
-  pr_number: string;
-  description: string;
-  plant: string;
-  type: 'Technical' | 'Non-Technical';
   total_value: number;
   status: string;
   created_at: Date;
+  po_status?: string;
+  po_date?: Date;
+  final_approval_status?: string;
+  currency: string;
+  entry_type: string;
+  requirement_type: 'Technical' | 'Non-Technical';
 }
 
 interface DraftCostSheet {
   id: string;
-  cost_sheet_number: string;
-  pr_number: string;
-  description: string;
-  progress: number;
   updated_at: Date;
+  po_status?: string;
+  po_date?: Date;
+  final_approval_status?: string;
+  currency: string;
+  entry_type: string;
 }
 
 export const getRecentPRs = (): RecentPR[] => {
@@ -39,7 +41,7 @@ export const getRecentPRs = (): RecentPR[] => {
       description: 'Technical equipment procurement',
       lineItems: 5,
       plant: 'Plant A',
-      type: 'Technical',
+      requirement_type: 'Technical',
       createdAt: '2024-01-15',
     },
     {
@@ -47,7 +49,7 @@ export const getRecentPRs = (): RecentPR[] => {
       description: 'Office supplies and materials',
       lineItems: 3,
       plant: 'Plant B',
-      type: 'Non-Technical',
+      requirement_type: 'Non-Technical',
       createdAt: '2024-01-14',
     },
     {
@@ -55,7 +57,7 @@ export const getRecentPRs = (): RecentPR[] => {
       description: 'Maintenance parts for machinery',
       lineItems: 8,
       plant: 'Plant A',
-      type: 'Technical',
+      requirement_type: 'Technical',
       createdAt: '2024-01-13',
     },
     {
@@ -63,7 +65,7 @@ export const getRecentPRs = (): RecentPR[] => {
       description: 'Safety equipment and PPE',
       lineItems: 4,
       plant: 'Plant C',
-      type: 'Non-Technical',
+      requirement_type: 'Non-Technical',
       createdAt: '2024-01-12',
     },
     {
@@ -71,7 +73,7 @@ export const getRecentPRs = (): RecentPR[] => {
       description: 'Industrial chemicals and reagents',
       lineItems: 6,
       plant: 'Plant B',
-      type: 'Technical',
+      requirement_type: 'Technical',
       createdAt: '2024-01-11',
     },
   ];
@@ -80,7 +82,7 @@ export const getRecentPRs = (): RecentPR[] => {
 export const getInitiatorDashboardMetrics = async (userId: number) => {
   const totalActiveCostSheets = await CostSheet.count({
     where: {
-      created_by: userId,
+      initiator_id: userId,
       status: {
         [Op.notIn]: ['Draft'],
       },
@@ -96,7 +98,7 @@ export const getInitiatorDashboardMetrics = async (userId: number) => {
 };
 
 export const getApproverDashboardMetrics = async () => {
-  const pendingStatuses = ['Pending L1', 'Pending L2', 'Pending L3'];
+  const pendingStatuses = ['Pending Approval'];
 
   const pendingCount = await CostSheet.count({
     where: {
@@ -111,7 +113,7 @@ export const getApproverDashboardMetrics = async () => {
       status: {
         [Op.in]: pendingStatuses,
       },
-      type: 'Technical',
+      requirement_type: 'Technical',
     },
   });
 
@@ -120,7 +122,7 @@ export const getApproverDashboardMetrics = async () => {
       status: {
         [Op.in]: pendingStatuses,
       },
-      type: 'Non-Technical',
+      requirement_type: 'Non-Technical',
     },
   });
 
@@ -159,22 +161,24 @@ export const getApproverDashboardMetrics = async () => {
     totalValue: parseFloat(totalValue.toString()),
     pendingApprovals: pendingApprovals.map((cs) => ({
       id: cs.id,
-      cost_sheet_number: cs.cost_sheet_number,
-      pr_number: cs.pr_number,
-      description: cs.description,
-      plant: cs.plant,
-      type: cs.type,
       total_value: parseFloat(cs.total_value.toString()),
       status: cs.status,
       created_at: cs.created_at,
+      po_status: cs.po_status,
+      po_date: cs.po_date,
+      final_approval_status: cs.final_approval_status,
+      currency: cs.currency,
+      entry_type: cs.entry_type,
+      requirement_type: cs.requirement_type,
     })),
     draftCostSheets: draftCostSheets.map((cs) => ({
       id: cs.id,
-      cost_sheet_number: cs.cost_sheet_number,
-      pr_number: cs.pr_number,
-      description: cs.description,
-      progress: cs.progress,
       updated_at: cs.updated_at,
+      po_status: cs.po_status,
+      po_date: cs.po_date,
+      final_approval_status: cs.final_approval_status,
+      currency: cs.currency,
+      entry_type: cs.entry_type,
     })),
   };
 };

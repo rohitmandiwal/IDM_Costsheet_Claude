@@ -86,7 +86,7 @@ export function InitiatorDashboard() {
   }
 
   return (
-    <div className="p-8 max-w-[1440px] mx-auto">
+    <div className="p-8">
       <div className="mb-8">
         <h1 className="text-gray-900 mb-2">Dashboard</h1>
         <p className="text-gray-600">Overview of procurement activities and pending actions</p>
@@ -196,7 +196,7 @@ export function InitiatorDashboard() {
                       <td className="py-3 px-4 text-gray-700">{pr.plant}</td>
                       <td className="py-3 px-4">
                         <Badge className={pr.type === 'Technical' ? 'bg-[#0B61FF] text-white' : 'bg-gray-500 text-white'}>
-                          {pr.type === 'Technical' ? 'TECH' : 'COMM'}
+                          {pr.type === 'Technical' ? 'TECH' : 'NON-TECH'}
                         </Badge>
                       </td>
                       <td className="py-3 px-4 text-right">

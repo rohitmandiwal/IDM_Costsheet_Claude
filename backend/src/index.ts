@@ -5,6 +5,7 @@ import express from 'express';
 import cors from 'cors';
 import authRoutes from './routes/authRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
+import costSheetRoutes from './routes/costSheetRoutes';
 import { connectDB } from './config/database';
 
 const app = express();
@@ -20,6 +21,7 @@ connectDB();
 
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/cost-sheets', costSheetRoutes);
 
 app.get('/', (req, res) => {
   res.send('IDM Cost Sheet Backend API is running!');

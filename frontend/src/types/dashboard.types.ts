@@ -3,7 +3,7 @@ export interface PurchaseRequisition {
   description: string;
   lineItems: number;
   plant: string;
-  type: 'Technical' | 'Non-Technical';
+  type: 'Technical' | 'Commercial';
   createdAt: string;
 }
 
@@ -11,7 +11,7 @@ export interface CostSheet {
   costSheetNumber: string;
   prNumber: string;
   amount: number;
-  type: 'Technical' | 'Non-Technical';
+  type: 'Technical' | 'Commercial';
   status: string;
   createdAt: string;
   progress?: number;

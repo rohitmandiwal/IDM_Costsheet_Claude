@@ -3,68 +3,49 @@ import { sequelize } from '../config/database';
 import { User } from './userModel';
 
 export interface CostSheetAttributes {
-  id: string;
-  cost_sheet_number: string;
-  pr_number: string;
-  description: string;
-  line_items: number;
-  plant: string;
-  type: 'Technical' | 'Non-Technical';
+  id: number;
+  requirement_type: 'Technical' | 'Non-Technical';
   total_value: number;
-  status: 'Draft' | 'Submitted' | 'Pending L1' | 'Pending L2' | 'Pending L3' | 'Approved' | 'Sent Back';
-  progress: number;
-  created_by: number;
+  status: 'Draft' | 'Pending Approval' | 'Approved' | 'Rejected' | 'Sent Back' | 'PO Requested';
+
+  initiator_id: number;
   created_at: Date;
   updated_at: Date;
+  po_status?: string;
+  po_date?: Date;
+  final_approval_status?: string;
+  currency: string;
+  entry_type: string;
 }
 
-export type CostSheetCreationAttributes = Optional<CostSheetAttributes, 'id' | 'progress' | 'created_at' | 'updated_at'>;
+export type CostSheetCreationAttributes = Optional<CostSheetAttributes, 'id' | 'created_at' | 'updated_at'>;
 
 export class CostSheet extends Model<CostSheetAttributes, CostSheetCreationAttributes> implements CostSheetAttributes {
-  public id!: string;
-  public cost_sheet_number!: string;
-  public pr_number!: string;
-  public description!: string;
-  public line_items!: number;
-  public plant!: string;
-  public type!: 'Technical' | 'Non-Technical';
+  public id!: number;
+
+  public requirement_type!: 'Technical' | 'Non-Technical';
   public total_value!: number;
-  public status!: 'Draft' | 'Submitted' | 'Pending L1' | 'Pending L2' | 'Pending L3' | 'Approved' | 'Sent Back';
+  public status!: 'Draft' | 'Pending Approval' | 'Approved' | 'Rejected' | 'Sent Back' | 'PO Requested';
   public progress!: number;
-  public created_by!: number;
+  public initiator_id!: number;
   public created_at!: Date;
   public updated_at!: Date;
+  public po_status?: string;
+  public po_date?: Date;
+  public final_approval_status?: string;
+  public currency!: string;
+  public entry_type!: string;
 }
 
 CostSheet.init(
   {
     id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
       primaryKey: true,
     },
-    cost_sheet_number: {
-      type: DataTypes.STRING(50),
-      allowNull: false,
-      unique: true,
-    },
-    pr_number: {
-      type: DataTypes.STRING(50),
-      allowNull: false,
-    },
-    description: {
-      type: DataTypes.TEXT,
-      allowNull: false,
-    },
-    line_items: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-    },
-    plant: {
-      type: DataTypes.STRING(100),
-      allowNull: false,
-    },
-    type: {
+
+    requirement_type: {
       type: DataTypes.ENUM('Technical', 'Non-Technical'),
       allowNull: false,
     },
@@ -73,20 +54,12 @@ CostSheet.init(
       allowNull: false,
     },
     status: {
-      type: DataTypes.ENUM('Draft', 'Submitted', 'Pending L1', 'Pending L2', 'Pending L3', 'Approved', 'Sent Back'),
+      type: DataTypes.ENUM('Draft', 'Pending Approval', 'Approved', 'Rejected', 'Sent Back', 'PO Requested'),
       allowNull: false,
       defaultValue: 'Draft',
     },
-    progress: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 0,
-      validate: {
-        min: 0,
-        max: 100,
-      },
-    },
-    created_by: {
+
+    initiator_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
@@ -104,6 +77,27 @@ CostSheet.init(
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
+    po_status: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+    },
+    po_date: {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
+    },
+    final_approval_status: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+    },
+    currency: {
+      type: DataTypes.STRING(10),
+      allowNull: false,
+      defaultValue: 'INR',
+    },
+    entry_type: {
+      type: DataTypes.STRING(50),
+      allowNull: false,
+    },
   },
   {
     sequelize,
@@ -114,4 +108,4 @@ CostSheet.init(
   }
 );
 
-CostSheet.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+CostSheet.belongsTo(User, { foreignKey: 'initiator_id', as: 'creator' });

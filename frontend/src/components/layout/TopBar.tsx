@@ -14,7 +14,7 @@ export function TopBar() {
 
   const getInitials = (name: string | undefined | null): string => {
     if (!name) {
-      return ''; // Return empty string if name is null, undefined, or empty
+      return '';
     }
     return name
       .split(' ')
@@ -25,32 +25,33 @@ export function TopBar() {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-border flex items-center justify-between px-6">
-      <div className="flex items-center space-x-4">
-        <h1 className="text-xl font-semibold text-foreground">
+    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
+      <div className="flex items-center">
+        <h1 className="text-lg font-medium text-gray-900">
           Procurement Cost-Sheet System
         </h1>
       </div>
 
       <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="icon" className="relative" title="Notifications">
+        <Button variant="ghost" size="icon" className="relative text-gray-600 hover:text-gray-900" title="Notifications">
           <Bell className="w-5 h-5" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full"></span>
+          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
         </Button>
 
-        <div className="flex items-center space-x-3 pl-4 border-l border-border">
-          <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-medium text-sm">
+        <div className="flex items-center space-x-3 pl-4 border-l border-gray-200">
+          <div className="w-9 h-9 rounded-full bg-[#0B61FF] flex items-center justify-center text-white font-medium text-sm">
             {user && getInitials(user.fullName)}
           </div>
           <div className="hidden md:block">
-            <p className="text-sm font-medium text-foreground">{user?.fullName}</p>
-            <p className="text-xs text-muted-foreground">{user?.role}</p>
+            <p className="text-sm font-medium text-gray-900">{user?.fullName}</p>
+            <p className="text-xs text-gray-500">{user?.role}</p>
           </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={handleLogout}
             title="Logout"
+            className="text-gray-600 hover:text-gray-900"
           >
             <LogOut className="w-5 h-5" />
           </Button>
