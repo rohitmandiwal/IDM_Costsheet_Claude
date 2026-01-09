@@ -5,7 +5,10 @@ export const findUserByUsername = async (username: string): Promise<User | null>
 };
 
 export const findUserById = async (id: number): Promise<User | null> => {
-  return User.findByPk(id);
+  const user = await User.findByPk(id);
+  if (user) {
+      }
+  return user;
 };
 
 export const createUser = async (userData: UserCreationAttributes): Promise<User> => {
