@@ -26,7 +26,17 @@ export const getMe = async (req: Request, res: Response) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-    res.status(200).json({ success: true, user: { id: user.id, name: user.full_name, email: user.email, role: user.role, department: user.department } });
+    res.status(200).json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        fullName: user.full_name,
+        email: user.email,
+        role: Array.isArray(user.role) ? user.role[0] : user.role,
+        department: user.department
+      }
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

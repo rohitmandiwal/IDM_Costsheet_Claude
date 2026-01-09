@@ -1,21 +1,39 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, FileText, CheckSquare, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../../lib/cn';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface SidebarProps {
   className?: string;
 }
 
-const menuItems = [
+interface MenuItem {
+  icon: typeof LayoutDashboard;
+  label: string;
+  path: string;
+  adminOnly?: boolean;
+}
+
+const allMenuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
   { icon: FileText, label: 'PR Entry', path: '/pr-entry' },
   { icon: CheckSquare, label: 'Approvals', path: '/approvals' },
-  { icon: Settings, label: 'Admin', path: '/admin' },
+  { icon: Settings, label: 'Admin', path: '/admin', adminOnly: true },
 ];
 
 export function Sidebar({ className }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { user } = useAuth();
+
+  const menuItems = useMemo(() => {
+    return allMenuItems.filter(item => {
+      if (item.adminOnly) {
+        return user?.role === 'Admin';
+      }
+      return true;
+    });
+  }, [user?.role]);
 
   return (
     <aside

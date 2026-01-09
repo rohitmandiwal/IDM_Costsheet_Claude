@@ -4,6 +4,7 @@ dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import authRoutes from './routes/authRoutes';
+import dashboardRoutes from './routes/dashboardRoutes';
 import { connectDB } from './config/database';
 
 const app = express();
@@ -15,11 +16,10 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Connect to the database
 connectDB();
 
-// Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 app.get('/', (req, res) => {
   res.send('IDM Cost Sheet Backend API is running!');

@@ -1,0 +1,173 @@
+{
+  "info": {
+    "name": "IDM Dashboard APIs",
+    "description": "Dashboard endpoints for Initiator, Approver, and Admin roles",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get Initiator Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/initiator",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "initiator"]
+            },
+            "description": "Fetch dashboard metrics for Initiator role: draft count, submitted count, sent back count, active cost sheets, and recent PRs from SAP (mock data)"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/dashboard/initiator",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "dashboard", "initiator"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"activeCostSheets\": 3,\n    \"draftCount\": 2,\n    \"submittedCount\": 1,\n    \"sentBackCount\": 0,\n    \"recentPRs\": [\n      {\n        \"pr_number\": \"13633801\",\n        \"description\": \"Technical equipment procurement\",\n        \"plant\": \"Plant A\",\n        \"date\": \"2024-01-15\",\n        \"status\": \"Open\"\n      },\n      {\n        \"pr_number\": \"24678012\",\n        \"description\": \"Office supplies and materials\",\n        \"plant\": \"Plant B\",\n        \"date\": \"2024-01-14\",\n        \"status\": \"Open\"\n      }\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Approver Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/approver",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "approver"]
+            },
+            "description": "Fetch dashboard metrics for Approver role: pending count, technical count, commercial count, total value, pending approvals list, and draft cost sheets"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/dashboard/approver",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "dashboard", "approver"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"pendingCount\": 2,\n    \"technicalCount\": 1,\n    \"commercialCount\": 1,\n    \"totalValue\": 170000.00,\n    \"pendingApprovals\": [\n      {\n        \"id\": \"uuid-1\",\n        \"cost_sheet_number\": \"CS-2024-001\",\n        \"pr_number\": \"13633801\",\n        \"description\": \"Technical equipment procurement for Plant A\",\n        \"plant\": \"Plant A\",\n        \"type\": \"Technical\",\n        \"total_value\": 125000.00,\n        \"status\": \"Pending L1\",\n        \"created_at\": \"2024-01-15T10:00:00.000Z\"\n      },\n      {\n        \"id\": \"uuid-2\",\n        \"cost_sheet_number\": \"CS-2024-002\",\n        \"pr_number\": \"24678012\",\n        \"description\": \"Office supplies and materials\",\n        \"plant\": \"Plant B\",\n        \"type\": \"Non-Technical\",\n        \"total_value\": 45000.00,\n        \"status\": \"Pending L1\",\n        \"created_at\": \"2024-01-14T09:00:00.000Z\"\n      }\n    ],\n    \"draftCostSheets\": [\n      {\n        \"id\": \"uuid-3\",\n        \"cost_sheet_number\": \"CS-2024-003\",\n        \"pr_number\": \"35489023\",\n        \"description\": \"Maintenance parts for machinery\",\n        \"progress\": 60,\n        \"updated_at\": \"2024-01-13T08:00:00.000Z\"\n      }\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Admin Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/admin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "admin"]
+            },
+            "description": "Fetch dashboard metrics for Admin role: total users, active users, and active cost sheets"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/dashboard/admin",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "dashboard", "admin"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"totalUsers\": 3,\n    \"activeUsers\": 3,\n    \"activeCostSheets\": 3\n  }\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { AdminSettingsPage } from './pages/AdminSettingsPage';
 
 function App() {
   return (
@@ -50,7 +51,7 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['Admin']}>
                 <DashboardLayout>
-                  <div className="text-2xl font-bold">Admin Page (Coming Soon)</div>
+                  <AdminSettingsPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }

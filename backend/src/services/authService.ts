@@ -58,9 +58,10 @@ export const loginUser = async (loginData: Pick<UserCreationAttributes, 'usernam
     token,
     user: {
       id: user.id,
-      name: user.full_name,
+      username: user.username,
+      fullName: user.full_name,
       email: user.email,
-      role: user.role,
+      role: Array.isArray(user.role) ? user.role[0] : user.role,
       department: user.department,
     },
   };

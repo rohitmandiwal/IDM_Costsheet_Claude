@@ -1,9 +1,10 @@
 export interface User {
-  id: string;
+  id: string | number;
   username: string;
   email: string;
   role: string;
   fullName: string;
+  department?: string;
 }
 
 export interface LoginCredentials {
