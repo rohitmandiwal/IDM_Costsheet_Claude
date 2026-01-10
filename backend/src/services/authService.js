@@ -9,12 +9,16 @@ const generateToken = (id) => {
 };
 
 const registerUser = async (userData) => {
-  const { email } = userData;
+  const { email, password } = userData;
 
   const existingUser = await findUserByEmail(email);
   if (existingUser) {
     throw new Error('User with this email already exists');
   }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  userData.password_hash = hashedPassword; // Add hashed password to userData
+  delete userData.password; // Remove plaintext password
 
   const user = await createUser(userData);
 
@@ -22,15 +26,17 @@ const registerUser = async (userData) => {
 };
 
 const loginUser = async (loginData) => {
-  const { email, okta_id } = loginData; // Assuming okta_id is passed for authentication
+  const { email, password } = loginData;
 
   const user = await findUserByEmail(email);
   if (!user) {
     throw new Error('Invalid credentials');
   }
 
-  // Here you would typically verify the okta_id or perform other checks
-  // For now, we'll assume if the user exists, login is successful
+  const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+  if (!isPasswordValid) {
+    throw new Error('Invalid credentials');
+  }
   
   const token = generateToken(user.id);
 

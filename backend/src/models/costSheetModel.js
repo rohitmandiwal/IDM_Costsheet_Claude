@@ -35,7 +35,7 @@ CostSheet.init(
         unique: true,
     },
     requirement_type: {
-        type: DataTypes.ENUM(...categoryTypes),
+        type: 'category_type', // Use native PostgreSQL enum type
         allowNull: false,
     },
     po_type: {
@@ -63,11 +63,11 @@ CostSheet.init(
         allowNull: true,
     },
     rfq_type: {
-        type: DataTypes.ENUM(...rfqTypes),
+        type: 'rfq_type', // Use native PostgreSQL enum type
         allowNull: true,
     },
     proposed_vendor_type: {
-        type: DataTypes.ENUM(...vendorTypes),
+        type: 'vendor_type', // Use native PostgreSQL enum type
         allowNull: true,
     },
     final_order_value: {
@@ -123,7 +123,7 @@ CostSheet.init(
       },
     },
     status: {
-        type: DataTypes.ENUM(...approvalStatuses),
+        type: 'approval_status', // Use native PostgreSQL enum type
         defaultValue: 'pending',
     },
     created_at: {

@@ -43,7 +43,7 @@ Approval.init(
         },
     },
     status: {
-        type: DataTypes.ENUM(...approvalStatuses),
+        type: 'approval_status', // Use the native PostgreSQL enum type
         defaultValue: 'pending',
     },
     comments: {

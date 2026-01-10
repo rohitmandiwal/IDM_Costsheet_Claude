@@ -25,7 +25,7 @@ ApproverLevel.init(
       allowNull: false,
     },
     approver_role: {
-      type: DataTypes.ENUM(...roleTypes),
+      type: 'role_type', // Use the native PostgreSQL enum type
       allowNull: false,
     },
     created_at: {

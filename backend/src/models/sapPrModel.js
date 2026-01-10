@@ -39,7 +39,7 @@ SapPr.init(
       defaultValue: 'INR',
     },
     category: {
-      type: DataTypes.ENUM(...categoryTypes),
+      type: 'category_type', // Use the native PostgreSQL enum type
       allowNull: false,
     },
     created_at: {

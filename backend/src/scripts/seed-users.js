@@ -1,5 +1,6 @@
 const { sequelize } = require('../config/database');
 const { User, RoleAssignment } = require('../models');
+const bcrypt = require('bcrypt');
 
 const dummyUsers = [
   {
@@ -48,12 +49,16 @@ const seedUsers = async () => {
         continue;
       }
 
+      const defaultPassword = 'password123';
+      const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
       const user = await User.create({
         okta_id: userData.okta_id,
         full_name: userData.full_name,
         email: userData.email,
         department: userData.department,
         is_active: userData.is_active,
+        password_hash: hashedPassword, // Store the hashed password
       });
 
       for(const role of userData.roles) {

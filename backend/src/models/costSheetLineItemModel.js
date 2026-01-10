@@ -38,7 +38,7 @@ CostSheetLineItem.init(
       allowNull: true,
     },
     status: {
-      type: DataTypes.ENUM(...approvalStatuses),
+      type: 'approval_status', // Use the native PostgreSQL enum type
       defaultValue: 'pending',
     },
     created_at: {

@@ -12,7 +12,7 @@ User.init(
     },
     okta_id: {
       type: DataTypes.STRING(255),
-      allowNull: false,
+      allowNull: true,
       unique: true,
     },
     full_name: {
@@ -38,6 +38,10 @@ User.init(
     },
     last_login: {
       type: DataTypes.DATE,
+      allowNull: true,
+    },
+    password_hash: {
+      type: DataTypes.STRING(255),
       allowNull: true,
     },
     created_at: {

@@ -28,7 +28,7 @@ Deviation.init(
       },
     },
     deviation_type: {
-        type: DataTypes.ENUM(...deviationTypes),
+        type: 'deviation_type', // Use the native PostgreSQL enum type
         allowNull: false,
     },
     raised_by: {

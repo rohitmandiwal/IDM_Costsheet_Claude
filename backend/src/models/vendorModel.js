@@ -26,7 +26,7 @@ Vendor.init(
       allowNull: false,
     },
     vendor_type: {
-      type: DataTypes.ENUM(...vendorTypes),
+      type: 'vendor_type', // Use the native PostgreSQL enum type
       allowNull: false,
     },
     created_at: {
