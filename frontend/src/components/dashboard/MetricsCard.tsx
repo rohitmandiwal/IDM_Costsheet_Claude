@@ -1,50 +1,24 @@
-import type { ReactNode } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/Card';
-import { cn } from '../../lib/cn';
+import React from 'react';
 
 interface MetricsCardProps {
-  title: string;
-  subtitle?: string;
-  count: number;
-  icon: React.ComponentType<{ className?: string }>;
-  iconColor?: string;
-  action?: ReactNode;
-  children?: ReactNode;
+  label: string;
+  value: string | number;
+  color?: 'technical' | 'commercial' | 'default';
 }
 
-export function MetricsCard({
-  title,
-  subtitle,
-  count,
-  icon: Icon,
-  iconColor = 'text-blue-600',
-  action,
-  children,
-}: MetricsCardProps) {
+const MetricsCard: React.FC<MetricsCardProps> = ({ label, value, color = 'default' }) => {
+  const colorClasses = {
+    technical: 'bg-blue-100 text-blue-800',
+    commercial: 'bg-green-100 text-green-800',
+    default: 'bg-gray-100 text-gray-800',
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-3">
-            <div className={cn('p-2 rounded-lg bg-gray-100', iconColor)}>
-              <Icon className="w-6 h-6" />
-            </div>
-            <div>
-              <CardTitle className="text-lg font-semibold">{title}</CardTitle>
-              {subtitle && <CardDescription className="text-sm mt-1">{subtitle}</CardDescription>}
-            </div>
-          </div>
-          {action && (
-            <div className="flex items-center gap-2">
-              <div className="px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-sm font-semibold">
-                {count}
-              </div>
-              {action}
-            </div>
-          )}
-        </div>
-      </CardHeader>
-      {children && <CardContent>{children}</CardContent>}
-    </Card>
+    <div className={`p-4 rounded-lg shadow-sm ${colorClasses[color]}`}>
+      <p className="text-sm font-medium text-gray-500">{label}</p>
+      <p className="text-2xl font-bold">{value}</p>
+    </div>
   );
-}
+};
+
+export default MetricsCard;
