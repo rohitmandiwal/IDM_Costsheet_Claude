@@ -78,6 +78,6 @@ SapPrLineItem.init(
 );
 
 SapPrLineItem.belongsTo(SapPr, { foreignKey: 'pr_number' });
-SapPr.hasMany(SapPrLineItem, { foreignKey: 'pr_number' });
+SapPr.hasMany(SapPrLineItem, { foreignKey: 'pr_number', as: 'sap_pr_line_items' });
 
 module.exports = { SapPrLineItem };

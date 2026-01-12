@@ -1,8 +1,8 @@
 export interface User {
   id: string | number;
-  username: string;
+  username?: string;
   email: string;
-  role: string;
+  roles: string[]; // Array of roles from role_assignments
   fullName: string;
   department?: string;
 }

@@ -10,9 +10,9 @@ User.init(
       autoIncrement: true,
       primaryKey: true,
     },
-    okta_id: {
+    username: {
       type: DataTypes.STRING(255),
-      allowNull: true,
+      allowNull: false,
       unique: true,
     },
     full_name: {

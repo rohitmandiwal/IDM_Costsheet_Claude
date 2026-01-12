@@ -1,6 +1,4 @@
-const { createCostSheetFromPRs } = require('../services/costSheetService');
-const { getDemoPRNumbers } = require('../services/sapService');
-const { findLineItemsByCostSheetId } = require('../repositories/costSheetRepository');
+const { createCostSheetFromPRs, createCostSheet, getCostSheetById, updateCostSheet, createVendorQuotation, updateVendorQuotation, deleteVendorQuotation, selectVendorAndDeviation, submitCostSheet, performApprovalAction, generatePoRequest } = require('../services/costSheetService');
 const logger = require('../utils/logger');
 
 const fetchPR = async (req, res) => {
@@ -69,46 +67,176 @@ const fetchPR = async (req, res) => {
   }
 };
 
-const getDemoPRs = async (req, res) => {
+
+
+const createCostSheetController = async (req, res) => {
   try {
-    const demoPRs = getDemoPRNumbers();
-    res.status(200).json({ success: true, data: { demoPRs } });
+    const initiatorId = req.user?.id;
+    if (!initiatorId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+    const { prNumbers, selectedLineItemIds, requirementType } = req.body;
+    const costSheet = await createCostSheet(initiatorId, prNumbers, selectedLineItemIds, requirementType);
+    res.status(201).json({ success: true, data: costSheet });
   } catch (error) {
-    logger.error(`Error in getDemoPRs controller: ${error.message}`);
+    logger.error(`Error in createCostSheet controller: ${error.message}`);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const getCostSheetByIdController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const costSheet = await getCostSheetById(id);
+    if (!costSheet) {
+      return res.status(404).json({ success: false, message: 'Cost Sheet not found' });
+    }
+    res.status(200).json({ success: true, data: costSheet });
+  } catch (error) {
+    logger.error(`Error in getCostSheetById controller: ${error.message}`);
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-const getPRLineItems = async (req, res) => {
+const updateCostSheetController = async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const { id } = req.params;
+    const updatedCostSheet = await updateCostSheet(id, req.body);
+    res.status(200).json({ success: true, data: updatedCostSheet });
+  } catch (error) {
+    logger.error(`Error in updateCostSheet controller: ${error.message}`);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const createVendorQuotationForLineItemController = async (req, res) => {
+  try {
+    const { lineItemId } = req.params;
+    const quotationData = req.body;
+    const newQuotation = await createVendorQuotation(lineItemId, quotationData);
+    res.status(201).json({ success: true, data: newQuotation });
+  } catch (error) {
+    logger.error(`Error in createVendorQuotationForLineItem controller: ${error.message}`);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const updateVendorQuotationByIdController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updatedQuotation = await updateVendorQuotation(id, req.body);
+    res.status(200).json({ success: true, data: updatedQuotation });
+  } catch (error) {
+    logger.error(`Error in updateVendorQuotationById controller: ${error.message}`);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const deleteVendorQuotationByIdController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await deleteVendorQuotation(id);
+    res.status(200).json({ success: true, message: 'Vendor quotation deleted successfully.' });
+  } catch (error) {
+    logger.error(`Error in deleteVendorQuotationById controller: ${error.message}`);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const selectVendorAndDeviationController = async (req, res) => {
+  try {
+    const { lineItemId } = req.params;
+    const { finalizedVendorId, deviationData } = req.body;
+    const initiatorId = req.user?.id; // Assuming initiator ID is available from authentication
+
+    if (!initiatorId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const updatedCostSheet = await selectVendorAndDeviation(
+      lineItemId,
+      finalizedVendorId,
+      deviationData,
+      initiatorId
+    );
+    res.status(200).json({ success: true, data: updatedCostSheet });
+  } catch (error) {
+    logger.error(`Error in selectVendorAndDeviation controller: ${error.message}`);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const submitCostSheetController = async (req, res) => {
+  try {
+    const { id: costSheetId } = req.params;
+    const { comments } = req.body;
+    const initiatorId = req.user?.id;
+
+    if (!initiatorId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const submittedCostSheet = await submitCostSheet(costSheetId, initiatorId, comments);
+    res.status(200).json({ success: true, data: submittedCostSheet });
+  } catch (error) {
+    logger.error(`Error in submitCostSheet controller: ${error.message}`);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const performApprovalActionController = async (req, res) => {
+  try {
+    const { id: costSheetId } = req.params;
+    const { action, comments, justification } = req.body;
+    const approverId = req.user?.id;
+    const approverRoles = req.user?.roles; // Assuming roles are part of req.user
+
+    if (!approverId || !approverRoles) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const updatedCostSheet = await performApprovalAction(
+      costSheetId,
+      approverId,
+      action,
+      comments,
+      justification,
+    );
+    res.status(200).json({ success: true, data: updatedCostSheet });
+  } catch (error) {
+    logger.error(`Error in performApprovalAction controller: ${error.message}`);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const generatePoRequestController = async (req, res) => {
+  try {
+    const { id: costSheetId } = req.params;
+    const poData = req.body;
+    const userId = req.user?.id; // Assuming the user triggering is the final approver
 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
-    const costSheetId = parseInt(req.params.costSheetId, 10);
-
-    if (isNaN(costSheetId)) {
-      return res.status(400).json({ success: false, message: 'Invalid cost sheet ID' });
-    }
-
-    const lineItems = await findLineItemsByCostSheetId(costSheetId);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        lineItems,
-      },
-    });
+    const updatedCostSheet = await generatePoRequest(costSheetId, userId, poData);
+    res.status(200).json({ success: true, data: updatedCostSheet });
   } catch (error) {
-    logger.error(`Error in getPRLineItems controller: ${error.message}`);
-    res.status(500).json({ success: false, message: error.message });
+    logger.error(`Error in generatePoRequest controller: ${error.message}`);
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
 module.exports = {
-    fetchPR,
-    getDemoPRs,
-    getPRLineItems
-}
+  fetchPR,
+  createCostSheet: createCostSheetController,
+  getCostSheetById: getCostSheetByIdController,
+  updateCostSheet: updateCostSheetController,
+  createVendorQuotationForLineItem: createVendorQuotationForLineItemController,
+  updateVendorQuotationById: updateVendorQuotationByIdController,
+  deleteVendorQuotationById: deleteVendorQuotationByIdController,
+  selectVendorAndDeviation: selectVendorAndDeviationController,
+  submitCostSheet: submitCostSheetController,
+  performApprovalAction: performApprovalActionController,
+  generatePoRequest: generatePoRequestController,
+};

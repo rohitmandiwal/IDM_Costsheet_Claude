@@ -46,7 +46,6 @@ ApproverLevel.init(
   }
 );
 
-ApproverLevel.belongsTo(ApprovalRule, { foreignKey: 'rule_id' });
-ApprovalRule.hasMany(ApproverLevel, { foreignKey: 'rule_id' });
+
 
 module.exports = { ApproverLevel };

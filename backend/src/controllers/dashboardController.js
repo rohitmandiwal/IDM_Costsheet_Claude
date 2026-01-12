@@ -22,7 +22,9 @@ const getInitiatorDashboard = async (req, res) => {
 
 const getApproverDashboard = async (req, res) => {
   try {
-    const metrics = await dashboardService.getApproverDashboardMetrics();
+    const userId = req.user?.id;
+    const userRoles = req.user?.roles;
+    const metrics = await dashboardService.getApproverDashboardMetrics(userId, userRoles);
     res.status(200).json({ success: true, data: metrics });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -38,9 +40,20 @@ const getAdminDashboard = async (req, res) => {
   }
 };
 
+const getAuditLogs = async (req, res) => {
+  try {
+    const filters = req.query;
+    const auditLogs = await dashboardService.getAuditLogs(filters);
+    res.status(200).json({ success: true, data: auditLogs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
     getUnifiedDashboard,
     getInitiatorDashboard,
     getApproverDashboard,
-    getAdminDashboard
+    getAdminDashboard,
+    getAuditLogs
 }

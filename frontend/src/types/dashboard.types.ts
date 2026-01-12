@@ -17,13 +17,25 @@ export interface CostSheet {
   progress?: number;
 }
 
+export interface Approval {
+  id: string;
+  prNumbers: string;
+  description: string;
+  createdBy: string;
+  submittedDate: string;
+  value: number;
+  level: string;
+  type: 'TECH' | 'COMM';
+  priority: 'High' | 'Medium' | 'Critical' | 'Low';
+}
+
 export interface InitiatorDashboardData {
   totalActiveCostSheets: number;
   recentPRs: PurchaseRequisition[];
 }
 
 export interface ApproverDashboardData {
-  pendingApprovals: CostSheet[];
+  pendingApprovals: Approval[];
   draftCostSheets: CostSheet[];
 }
 

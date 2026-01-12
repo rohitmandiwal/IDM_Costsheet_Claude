@@ -1,7 +1,5 @@
 const { DataTypes, Model } = require('sequelize');
 const { sequelize } = require('../config/database');
-const { CostSheetLineItem } = require('./costSheetLineItemModel');
-const { User } = require('./userModel');
 
 const deviationTypes = [
     'single_source',
@@ -68,11 +66,5 @@ Deviation.init(
     updatedAt: 'updated_at',
   }
 );
-
-Deviation.belongsTo(CostSheetLineItem, { foreignKey: 'line_item_id' });
-CostSheetLineItem.hasMany(Deviation, { foreignKey: 'line_item_id' });
-
-Deviation.belongsTo(User, { as: 'raisedByUser', foreignKey: 'raised_by' });
-Deviation.belongsTo(User, { as: 'approvedByUser', foreignKey: 'approved_by' });
 
 module.exports = { Deviation, deviationTypes };

@@ -1,260 +1,154 @@
 import { useState, useEffect } from 'react';
-import { Clock, FileText } from 'lucide-react';
-import { Card } from '../components/ui/Card';
+import { useNavigate } from 'react-router-dom';
+import { Search } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { dashboardService } from '../services/dashboard.service';
-import type { ApproverDashboardData, CostSheet } from '../types/dashboard.types';
+import type { Approval } from '../types/dashboard.types';
+
+const priorityStyles: { [key: string]: string } = {
+    'Critical': 'bg-red-100 text-red-800 border-red-200',
+    'High': 'bg-orange-100 text-orange-800 border-orange-200',
+    'Medium': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    'Low': 'bg-blue-100 text-blue-800 border-blue-200',
+};
 
 export function ApproverDashboard() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [data, setData] = useState<ApproverDashboardData | null>(null);
-  const [activeFilter, setActiveFilter] = useState<'All' | 'Technical' | 'Non-Technical'>('All');
-  const [filteredPendingApprovals, setFilteredPendingApprovals] = useState<CostSheet[]>([]);
-  const [filteredDraftSheets, setFilteredDraftSheets] = useState<CostSheet[]>([]);
+    const navigate = useNavigate();
+    const [filter, setFilter] = useState('All');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [approvals, setApprovals] = useState<Approval[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    useEffect(() => {
+        const fetchApprovals = async () => {
+            try {
+                setLoading(true);
+                const data = await dashboardService.getApproverDashboard();
+                setApprovals(data.pendingApprovals);
+                setError(null);
+            } catch (err) {
+                setError('Failed to fetch approvals. Please try again.');
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchApprovals();
+    }, []);
 
-  useEffect(() => {
-    if (data) {
-      applyFilter();
+    const technicalCount = approvals.filter(a => a.type === 'TECH').length;
+    const commercialCount = approvals.filter(a => a.type === 'COMM').length;
+    const totalValue = approvals.reduce((sum, a) => sum + a.value, 0);
+
+    const filteredApprovals = approvals.filter(item => {
+        const matchesFilter = filter === 'All' || item.type === filter;
+        const matchesSearch = [item.id, item.prNumbers, item.description, item.createdBy].some(field =>
+            field.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        return matchesFilter && matchesSearch;
+    });
+    
+    const handleReview = (approvalId: string) => {
+        navigate(`/approvals/${approvalId}`);
+    };
+
+    if (loading) {
+        return <div className="flex justify-center items-center h-screen">Loading approvals...</div>;
     }
-  }, [activeFilter, data]);
 
-  const fetchDashboardData = async () => {
-    try {
-      setIsLoading(true);
-      const dashboardData = await dashboardService.getApproverDashboard();
-      setData(dashboardData);
-      setFilteredPendingApprovals(dashboardData.pendingApprovals);
-      setFilteredDraftSheets(dashboardData.draftCostSheets);
-    } catch (error: any) {
-      console.error('Failed to fetch dashboard data:', error);
-      if (error.response?.status === 403) {
-        console.error('Access denied: User does not have Approver role');
-      }
-    } finally {
-      setIsLoading(false);
+    if (error) {
+        return <div className="flex justify-center items-center h-screen text-red-500">{error}</div>;
     }
-  };
 
-  const applyFilter = () => {
-    if (!data) return;
-
-    if (activeFilter === 'All') {
-      setFilteredPendingApprovals(data.pendingApprovals);
-      setFilteredDraftSheets(data.draftCostSheets);
-    } else {
-      setFilteredPendingApprovals(
-        data.pendingApprovals.filter((cs) => cs.type === activeFilter)
-      );
-      setFilteredDraftSheets(
-        data.draftCostSheets.filter((cs) => cs.type === activeFilter)
-      );
-    }
-  };
-
-  const handleCostSheetClick = (costSheetNumber: string) => {
-    console.log('View cost sheet:', costSheetNumber);
-  };
-
-  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-gray-500">Loading dashboard...</div>
-      </div>
-    );
-  }
+        <div className="bg-gray-50 min-h-screen p-8">
+            <div className="max-w-7xl mx-auto">
+                <h1 className="text-2xl font-bold text-gray-800 mb-2">Pending Approvals</h1>
+                <p className="text-sm text-gray-500 mb-6">Review and approve cost sheets awaiting your action</p>
 
-  if (!data) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="text-lg text-red-500 mb-2">Failed to load dashboard data</div>
-          <div className="text-sm text-gray-600">You may not have the required permissions to access this dashboard.</div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-8 max-w-[1440px] mx-auto">
-      <div className="mb-8">
-        <h1 className="text-gray-900 mb-2">Dashboard</h1>
-        <p className="text-gray-600">Overview of procurement activities and pending actions</p>
-      </div>
-
-      <div className="mb-6">
-        <Card className="p-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600 mr-2">Filter by Type:</span>
-            <button
-              onClick={() => setActiveFilter('All')}
-              className={`px-4 py-2 rounded-full text-sm transition-colors ${
-                activeFilter === 'All'
-                  ? 'bg-[#0B61FF] text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setActiveFilter('Technical')}
-              className={`px-4 py-2 rounded-full text-sm transition-colors ${
-                activeFilter === 'Technical'
-                  ? 'bg-[#0B61FF] text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Technical
-            </button>
-            <button
-              onClick={() => setActiveFilter('Non-Technical')}
-              className={`px-4 py-2 rounded-full text-sm transition-colors ${
-                activeFilter === 'Non-Technical'
-                  ? 'bg-[#0B61FF] text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Non-Technical
-            </button>
-          </div>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-12 gap-6">
-        <div className="col-span-6">
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#FEF3C7] rounded-lg flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-[#F39C12]" />
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                    <SummaryCard title="Total Pending" value={approvals.length} />
+                    <SummaryCard title="Technical" value={technicalCount} />
+                    <SummaryCard title="Commercial" value={commercialCount} />
+                    <SummaryCard title="Total Value" value={`₹${totalValue.toLocaleString()}`} />
                 </div>
-                <div>
-                  <h2 className="text-gray-900">Pending Approvals</h2>
-                  <p className="text-gray-600 text-sm">Cost sheets awaiting your action</p>
-                </div>
-              </div>
-              <Badge variant="secondary">{filteredPendingApprovals.length}</Badge>
-            </div>
 
-            <div className="space-y-4">
-              {filteredPendingApprovals.length === 0 ? (
-                <div className="p-4 text-center text-gray-500">
-                  No pending approvals
-                </div>
-              ) : (
-                filteredPendingApprovals.map((approval) => (
-                  <div
-                    key={approval.costSheetNumber}
-                    className="p-4 border border-gray-200 rounded-lg hover:border-[#0B61FF] hover:shadow-sm transition-all cursor-pointer"
-                    onClick={() => handleCostSheetClick(approval.costSheetNumber)}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <div className="text-gray-900 mb-1">{approval.costSheetNumber}</div>
-                        <div className="text-sm text-gray-600">
-                          PRs: {approval.prNumbers.join(', ')}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className={approval.type === 'Technical' ? 'bg-[#0B61FF] text-white' : 'bg-gray-500 text-white'}>
-                          {approval.type === 'Technical' ? 'TECH' : 'NON-TECH'}
-                        </Badge>
-                        <Badge className="bg-[#FEF3C7] text-[#F39C12] border-[#F39C12]/20">
-                          {approval.status}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">₹{approval.totalValue.toLocaleString()}</span>
-                      <span className="text-gray-500">{approval.daysAgo}d ago</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <Button
-              variant="ghost"
-              className="w-full mt-4"
-              onClick={() => console.log('View all approvals')}
-            >
-              View All Approvals
-            </Button>
-          </Card>
-        </div>
-
-        <div className="col-span-6">
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#DBEAFE] rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-[#0B61FF]" />
-                </div>
-                <div>
-                  <h2 className="text-gray-900">Draft Cost Sheets</h2>
-                  <p className="text-gray-600 text-sm">Continue working on drafts</p>
-                </div>
-              </div>
-              <Badge variant="secondary">{filteredDraftSheets.length}</Badge>
-            </div>
-
-            <div className="space-y-4">
-              {filteredDraftSheets.length === 0 ? (
-                <div className="p-4 text-center text-gray-500">
-                  No draft cost sheets
-                </div>
-              ) : (
-                filteredDraftSheets.map((draft) => (
-                  <div
-                    key={draft.costSheetNumber}
-                    className="p-4 border border-gray-200 rounded-lg hover:border-[#0B61FF] hover:shadow-sm transition-all cursor-pointer"
-                    onClick={() => handleCostSheetClick(draft.costSheetNumber)}
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-gray-900">{draft.costSheetNumber}</span>
-                          <Badge className={draft.type === 'Technical' ? 'bg-[#0B61FF] text-white' : 'bg-gray-500 text-white'}>
-                            {draft.type === 'Technical' ? 'TECH' : 'NON-TECH'}
-                          </Badge>
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          PRs: {draft.prNumbers.join(', ')}
-                        </div>
-                      </div>
-                      <span className="text-sm text-gray-500">{draft.lastEdited}</span>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-gray-600">Progress</span>
-                        <span className="text-gray-900">{draft.progress}%</span>
-                      </div>
-                      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[#0B61FF] transition-all"
-                          style={{ width: `${draft.progress}%` }}
+                {/* Search and Filter */}
+                <div className="flex justify-between items-center mb-4">
+                    <div className="relative w-1/3">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                        <Input 
+                            placeholder="Search by CS ID, PR Number, Description, or Creator..."
+                            className="pl-10"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                         />
-                      </div>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
+                    <div className="flex items-center gap-2">
+                        <FilterButton label="All" activeFilter={filter} setFilter={setFilter} />
+                        <FilterButton label="TECH" activeFilter={filter} setFilter={setFilter} />
+                        <FilterButton label="COMM" activeFilter={filter} setFilter={setFilter} />
+                    </div>
+                </div>
 
-            <Button
-              variant="ghost"
-              className="w-full mt-4"
-              onClick={() => console.log('View all drafts')}
-            >
-              View All Drafts
-            </Button>
-          </Card>
+                {/* Approvals List */}
+                <div className="space-y-4">
+                    {filteredApprovals.map(item => (
+                        <ApprovalCard key={item.id} item={item} onReview={handleReview} />
+                    ))}
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
+}
+
+// Sub-components
+function SummaryCard({ title, value }: { title: string; value: string | number }) {
+    return (
+        <div className="bg-white p-5 rounded-lg border border-gray-200">
+            <p className="text-sm text-gray-500 mb-1">{title}</p>
+            <p className="text-2xl font-bold text-gray-800">{value}</p>
+        </div>
+    );
+}
+
+function FilterButton({ label, activeFilter, setFilter }: { label: string, activeFilter: string, setFilter: (f: string) => void }) {
+    const isActive = activeFilter === label;
+    return (
+        <Button 
+            variant={isActive ? 'default' : 'outline'}
+            onClick={() => setFilter(label)}
+        >
+            {label}
+        </Button>
+    )
+}
+
+function ApprovalCard({ item, onReview }: { item: Approval, onReview: (id: string) => void }) {
+    return (
+        <div className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+            <div className="flex justify-between items-start">
+                <div>
+                    <div className="flex items-center gap-3 mb-2">
+                        <span className="font-semibold text-blue-600">{item.id}</span>
+                        <Badge variant="outline" className={priorityStyles[item.priority]}>{item.priority}</Badge>
+                        <Badge className={item.type === 'TECH' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}>{item.type}</Badge>
+                    </div>
+                    <p className="text-sm text-gray-700 font-medium mb-1">{item.description}</p>
+                    <p className="text-xs text-gray-500">PR Numbers: {item.prNumbers}</p>
+                </div>
+                <Button variant="default" onClick={() => onReview(item.id)}>Review →</Button>
+            </div>
+            <div className="border-t border-gray-100 mt-4 pt-3 flex justify-between items-center text-xs text-gray-500">
+                <span>Created By: <span className="font-medium text-gray-700">{item.createdBy}</span></span>
+                <span>Submitted: <span className="font-medium text-gray-700">{item.submittedDate}</span></span>
+                <span>Total Value: <span className="font-medium text-gray-700">₹{item.value.toLocaleString()}</span></span>
+                <span>Current Level: <span className="font-medium text-gray-700">{item.level}</span></span>
+            </div>
+        </div>
+    );
 }

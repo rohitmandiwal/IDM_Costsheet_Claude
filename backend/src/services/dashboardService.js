@@ -1,4 +1,4 @@
-const { CostSheet, User, SapPr } = require('../models');
+const { CostSheet, User, SapPr, Approval, RoleAssignment, AuditLog, ApproverLevel, CostSheetPr, CostSheetLineItem } = require('../models');
 const { Op } = require('sequelize');
 
 const getRecentPRs = async () => {
@@ -21,7 +21,7 @@ const getInitiatorDashboardMetrics = async (userId) => {
     where: {
       initiator_id: userId,
       status: {
-        [Op.notIn]: ['Draft'],
+        [Op.notIn]: ['draft'],
       },
     },
   });
@@ -34,58 +34,81 @@ const getInitiatorDashboardMetrics = async (userId) => {
   };
 };
 
-const getApproverDashboardMetrics = async () => {
+const getApproverDashboardMetrics = async (userId, userRoles) => {
   const pendingStatuses = ['pending'];
+  const approverRoles = userRoles.filter(role => role.startsWith('approver_l') || role === 'admin');
+
+  // Find approval levels assigned to the current user's roles
+  const relevantApprovalLevels = await ApproverLevel.findAll({
+    where: { approver_role: { [Op.in]: approverRoles } },
+    attributes: ['level'],
+    raw: true,
+  });
+
+  const levelsUserCanApprove = relevantApprovalLevels.map(al => al.level);
+
+  // If the user has no approver roles, or admin role, they might not see specific levels by default,
+  // but an admin would see all pending approvals. For now, we filter by specific levels.
+  let pendingCostSheetsWhereClause = {
+    status: { [Op.in]: pendingStatuses },
+    // This assumes `current_approval_level` exists in CostSheet to track which level it's pending at.
+    // If cost_sheet_id is 1, current_approval_level is 1. If 2 then 2 and so on.
+    current_approval_level: { [Op.in]: levelsUserCanApprove },
+  };
+
+  if (userRoles.includes('admin')) {
+    // Admins can see all pending cost sheets regardless of level
+    pendingCostSheetsWhereClause = {
+      status: { [Op.in]: pendingStatuses },
+    };
+  }
 
   const pendingCount = await CostSheet.count({
-    where: {
-      status: {
-        [Op.in]: pendingStatuses,
-      },
-    },
+    where: pendingCostSheetsWhereClause,
   });
 
   const technicalCount = await CostSheet.count({
     where: {
-      status: {
-        [Op.in]: pendingStatuses,
-      },
+      ...pendingCostSheetsWhereClause,
       requirement_type: 'technical',
     },
   });
 
   const commercialCount = await CostSheet.count({
     where: {
-      status: {
-        [Op.in]: pendingStatuses,
-      },
+      ...pendingCostSheetsWhereClause,
       requirement_type: 'non_technical',
     },
   });
 
   const totalValueResult = await CostSheet.sum('final_order_value', {
-    where: {
-      status: {
-        [Op.in]: pendingStatuses,
-      },
-    },
+    where: pendingCostSheetsWhereClause,
   });
 
   const totalValue = totalValueResult || 0;
 
   const pendingApprovals = await CostSheet.findAll({
-    where: {
-      status: {
-        [Op.in]: pendingStatuses,
-      },
-    },
+    where: pendingCostSheetsWhereClause,
+    include: [
+        { model: User, as: 'initiator', attributes: ['full_name'] },
+        {
+            model: Approval,
+            as: 'approvals',
+            where: {
+                status: 'pending',
+                level: { [Op.in]: levelsUserCanApprove },
+            },
+            required: false // LEFT JOIN to get all cost sheets, even if no matching pending approval for this user
+        }
+    ],
     order: [['created_at', 'DESC']],
     limit: 10,
   });
 
   const draftCostSheets = await CostSheet.findAll({
     where: {
-      status: 'Draft',
+      initiator_id: userId, // Drafts are specific to the initiator
+      status: 'draft',
     },
     order: [['updated_at', 'DESC']],
     limit: 5,
@@ -98,14 +121,24 @@ const getApproverDashboardMetrics = async () => {
     totalValue: parseFloat(totalValue.toString()),
     pendingApprovals: pendingApprovals.map((cs) => ({
       id: cs.id,
-      total_value: parseFloat(cs.final_order_value.toString()),
+      costSheetNumber: cs.cost_sheet_number,
+      description: cs.cost_sheet_line_items ? cs.cost_sheet_line_items.map(li => li.description).join(', ') : '',
+      totalValue: parseFloat(cs.final_order_value.toString()),
       status: cs.status,
-      created_at: cs.created_at,
-      requirement_type: cs.requirement_type,
+      createdAt: cs.created_at,
+      submittedAt: cs.updated_at, // Assuming submittedAt is when status changed from draft to pending
+      requirementType: cs.requirement_type,
+      createdBy: cs.initiator ? cs.initiator.full_name : 'N/A',
+      currentLevel: cs.current_approval_level, // Make sure this column exists in your DB and model
+      prs: cs.cost_sheet_prs ? cs.cost_sheet_prs.map(csp => csp.pr_number) : [],
+      // Add daysAgo calculation if needed, requires moment.js or similar
     })),
     draftCostSheets: draftCostSheets.map((cs) => ({
       id: cs.id,
-      updated_at: cs.updated_at,
+      costSheetNumber: cs.cost_sheet_number,
+      updatedAt: cs.updated_at,
+      requirementType: cs.requirement_type,
+      prs: cs.cost_sheet_prs ? cs.cost_sheet_prs.map(csp => csp.pr_number) : [],
     })),
   };
 };
@@ -122,7 +155,7 @@ const getAdminDashboardMetrics = async () => {
   const activeCostSheets = await CostSheet.count({
     where: {
       status: {
-        [Op.notIn]: ['Draft'],
+        [Op.notIn]: ['draft', 'rejected'],
       },
     },
   });
@@ -134,9 +167,48 @@ const getAdminDashboardMetrics = async () => {
   };
 };
 
+const getAuditLogs = async (filters) => {
+  const whereClause = {};
+
+  if (filters.userId) {
+    whereClause.user_id = filters.userId;
+  }
+  if (filters.costSheetId) {
+    whereClause.cost_sheet_id = filters.costSheetId;
+  }
+  if (filters.activityType) {
+    whereClause.activity_type = filters.activityType;
+  }
+  if (filters.startDate && filters.endDate) {
+    whereClause.created_at = {
+      [Op.between]: [new Date(filters.startDate), new Date(filters.endDate)],
+    };
+  } else if (filters.startDate) {
+    whereClause.created_at = {
+      [Op.gte]: new Date(filters.startDate),
+    };
+  } else if (filters.endDate) {
+    whereClause.created_at = {
+      [Op.lte]: new Date(filters.endDate),
+    };
+  }
+
+  const auditLogs = await AuditLog.findAll({
+    where: whereClause,
+    include: [
+      { model: User, attributes: ['id', 'full_name', 'email'] },
+      { model: CostSheet, attributes: ['id', 'cost_sheet_number'] },
+    ],
+    order: [['created_at', 'DESC']],
+  });
+
+  return auditLogs;
+};
+
 module.exports = {
     getRecentPRs,
     getInitiatorDashboardMetrics,
     getApproverDashboardMetrics,
-    getAdminDashboardMetrics
-}
+    getAdminDashboardMetrics,
+    getAuditLogs
+};

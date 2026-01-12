@@ -30,11 +30,12 @@ export function Sidebar({ className, isCollapsed, setIsCollapsed }: SidebarProps
   const menuItems = useMemo(() => {
     return allMenuItems.filter(item => {
       if (item.adminOnly) {
-        return user?.role === 'Admin';
+        // Check if user has 'admin' role in their roles array
+        return user?.roles?.includes('admin');
       }
       return true;
     });
-  }, [user?.role]);
+  }, [user?.roles]);
 
   return (
     <aside
@@ -54,16 +55,16 @@ export function Sidebar({ className, isCollapsed, setIsCollapsed }: SidebarProps
           </div>
           {!isCollapsed && <span className="font-semibold text-lg text-blue-700">ProcureCS</span>}
         </div>
-          {!isCollapsed && (
-            <button
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              className="text-gray-600 hover:text-gray-800 transition-colors"
-              title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-          )}
-        </div>
+        {!isCollapsed && (
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="text-gray-600 hover:text-gray-800 transition-colors"
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+        )}
+      </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1">
         {menuItems.map((item) => (

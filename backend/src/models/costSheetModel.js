@@ -14,6 +14,7 @@ const rfqTypes = [
 ];
 
 const approvalStatuses = [
+    'draft',
     'pending',
     'approved',
     'rejected',
@@ -126,6 +127,10 @@ CostSheet.init(
         type: 'approval_status', // Use native PostgreSQL enum type
         defaultValue: 'pending',
     },
+    current_approval_level: {
+        type: DataTypes.INTEGER,
+        allowNull: true, // Null until first submission
+    },
     created_at: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
@@ -144,7 +149,6 @@ CostSheet.init(
   }
 );
 
-CostSheet.belongsTo(User, { foreignKey: 'initiator_id' });
-User.hasMany(CostSheet, { foreignKey: 'initiator_id' });
+
 
 module.exports = { CostSheet, rfqTypes, approvalStatuses };

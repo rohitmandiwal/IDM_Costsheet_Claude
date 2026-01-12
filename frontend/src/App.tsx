@@ -8,6 +8,9 @@ import { AdminSettingsPage } from './pages/AdminSettingsPage';
 import { CreateCostSheetPage } from './pages/CreateCostSheetPage';
 import { PRDetailsPage } from './pages/PRDetailsPage';
 import { CostSheetEditorPage } from './pages/CostSheetEditorPage';
+import { PRSummaryPage } from './pages/PRSummaryPage';
+import { ApproverDashboard } from './pages/ApproverDashboard';
+import { ApproverPage } from './pages/ApproverPage';
 
 function App() {
   return (
@@ -39,11 +42,33 @@ function App() {
           />
 
           <Route
+            path="/pr-summary"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <PRSummaryPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/approvals"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <div className="text-2xl font-bold">Approvals Page (Coming Soon)</div>
+                  <ApproverDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/approvals/:costSheetId"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ApproverPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -52,7 +77,7 @@ function App() {
           <Route
             path="/admin"
             element={
-              <ProtectedRoute allowedRoles={['Admin']}>
+              <ProtectedRoute allowedRoles={['admin']}>
                 <DashboardLayout>
                   <AdminSettingsPage />
                 </DashboardLayout>

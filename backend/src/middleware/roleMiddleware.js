@@ -1,42 +1,29 @@
-const { RoleAssignment } = require('../models');
+// backend/src/middleware/roleMiddleware.js
+const logger = require('../utils/logger');
 
-const requireRole = (...allowedRoles) => {
-  return async (req, res, next) => {
+const requireRole = (...roles) => {
+  return (req, res, next) => {
     const user = req.user;
-
     if (!user) {
-      console.error('[Role Middleware] User object not found in request');
-      return res.status(401).json({ success: false, message: 'Not authorized' });
+      logger.error('User not authenticated: Cannot check roles.');
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
-    const roles = await RoleAssignment.findAll({ where: { user_id: user.id } });
-    const userRoles = roles.map(r => r.role);
+    // Ensure user.roles is an array, even if undefined or null
+    const userRoles = Array.isArray(user.roles) ? user.roles : [];
 
-    console.log('[Role Middleware] User:', { id: user.id, roles: userRoles });
-    console.log('[Role Middleware] Allowed roles:', allowedRoles);
-
-    if (!userRoles || userRoles.length === 0) {
-      console.error('[Role Middleware] User roles are missing');
-      return res.status(403).json({ success: false, message: 'Access denied - no roles assigned' });
-    }
-
-    const hasRole = allowedRoles.some(role => userRoles.includes(role));
+    // Check if user has any of the required roles
+    const hasRole = roles.some(role => userRoles.includes(role));
 
     if (!hasRole) {
-      console.error('[Role Middleware] Role check failed. User roles:', userRoles, 'Required:', allowedRoles);
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied - insufficient permissions',
-        debug: {
-          userRoles: userRoles,
-          requiredRoles: allowedRoles
-        }
-      });
+      logger.warn(`User ${user.email} attempted to access with insufficient roles. Required: ${roles.join(', ')}, Provided: ${userRoles.join(', ')}`);
+      return res.status(403).json({ success: false, message: 'Forbidden: Insufficient permissions.' });
     }
 
-    console.log('[Role Middleware] Access granted');
     next();
   };
 };
 
-module.exports = { requireRole };
+module.exports = {
+  requireRole,
+};

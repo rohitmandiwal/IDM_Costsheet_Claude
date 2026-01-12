@@ -1,3 +1,4 @@
+const { sequelize } = require('../config/database');
 const { User } = require('./userModel');
 const { RoleAssignment } = require('./roleAssignmentModel');
 const { ValueBand } = require('./valueBandModel');
@@ -18,7 +19,72 @@ const { PoRequest } = require('./poRequestModel');
 const { AuditLog } = require('./auditLogModel');
 const { Notification } = require('./notificationModel');
 
+// Define Associations
+
+// User and RoleAssignment
+User.hasMany(RoleAssignment, { foreignKey: 'user_id', as: 'role_assignments' });
+RoleAssignment.belongsTo(User, { foreignKey: 'user_id' });
+
+// Approval Matrix
+ValueBand.hasMany(ApprovalRule, { foreignKey: 'value_band_id' });
+ApprovalRule.belongsTo(ValueBand, { foreignKey: 'value_band_id' });
+
+ApprovalRule.hasMany(ApproverLevel, { foreignKey: 'rule_id', as: 'approver_levels' });
+ApproverLevel.belongsTo(ApprovalRule, { foreignKey: 'rule_id' });
+
+// SAP PR and CostSheetPr
+SapPr.hasMany(CostSheetPr, { foreignKey: 'pr_number' });
+CostSheetPr.belongsTo(SapPr, { foreignKey: 'pr_number' });
+
+// CostSheet and CostSheetPr
+CostSheet.hasMany(CostSheetPr, { foreignKey: 'cost_sheet_id', as: 'cost_sheet_prs' });
+CostSheetPr.belongsTo(CostSheet, { foreignKey: 'cost_sheet_id' });
+
+// CostSheet and User (Initiator)
+CostSheet.belongsTo(User, { foreignKey: 'initiator_id', as: 'initiator' });
+User.hasMany(CostSheet, { foreignKey: 'initiator_id' });
+
+// CostSheetLineItem and CostSheet
+CostSheetLineItem.belongsTo(CostSheet, { foreignKey: 'cost_sheet_id' });
+CostSheet.hasMany(CostSheetLineItem, { foreignKey: 'cost_sheet_id', as: 'cost_sheet_line_items' });
+
+// CostSheetLineItem and SapPrLineItem
+CostSheetLineItem.belongsTo(SapPrLineItem, { foreignKey: 'sap_line_item_id' });
+SapPrLineItem.hasMany(CostSheetLineItem, { foreignKey: 'sap_line_item_id', as: 'cost_sheet_line_items' });
+
+// CostSheetLineItem and VendorQuotation
+CostSheetLineItem.hasMany(VendorQuotation, { foreignKey: 'line_item_id', as: 'vendor_quotations' });
+VendorQuotation.belongsTo(CostSheetLineItem, { foreignKey: 'line_item_id' });
+
+// CostSheetLineItem and Deviation
+CostSheetLineItem.hasMany(Deviation, { foreignKey: 'line_item_id', as: 'deviations' });
+Deviation.belongsTo(CostSheetLineItem, { foreignKey: 'line_item_id' });
+
+// Vendor and SapVendor
+Vendor.belongsTo(SapVendor, { foreignKey: 'vendor_code' });
+SapVendor.hasMany(Vendor, { foreignKey: 'vendor_code' });
+
+// Deviation and User
+Deviation.belongsTo(User, { as: 'raisedByUser', foreignKey: 'raised_by' });
+Deviation.belongsTo(User, { as: 'approvedByUser', foreignKey: 'approved_by' });
+
+// Approval and User
+Approval.belongsTo(User, { foreignKey: 'approver_id' });
+User.hasMany(Approval, { foreignKey: 'approver_id' });
+
+// CostSheet and Approval
+CostSheet.hasMany(Approval, { foreignKey: 'cost_sheet_id', as: 'approvals' });
+Approval.belongsTo(CostSheet, { foreignKey: 'cost_sheet_id' });
+
+// AuditLog and User, CostSheet
+AuditLog.belongsTo(User, { foreignKey: 'user_id' });
+AuditLog.belongsTo(CostSheet, { foreignKey: 'cost_sheet_id' });
+
+// PoRequest and CostSheet
+PoRequest.belongsTo(CostSheet, { foreignKey: 'cost_sheet_id' });
+
 module.exports = {
+  sequelize,
   User,
   RoleAssignment,
   ValueBand,

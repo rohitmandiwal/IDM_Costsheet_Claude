@@ -18,7 +18,7 @@ const connectDB = async () => {
     // Synchronize models (create tables if they don't exist)
     // In a production environment, you would use migrations instead of `sync({ force: true })` or `sync()`
     // For development, `sync()` is acceptable. `sync({ force: true })` will drop existing tables.
-    await sequelize.sync();
+    await sequelize.sync({ alter: true });
     console.log('Database synchronized.');
   } catch (error) {
     console.error('Unable to connect to the database:', error);

@@ -22,7 +22,7 @@ export interface PRSummary {
 }
 
 export interface FetchPRRequest {
-  requirementType: 'Technical' | 'Commercial';
+  requirementType: 'technical' | 'non_technical';
   prNumbers: string[];
 }
 
@@ -41,9 +41,3 @@ export interface FetchPRLineItemsResponse {
   };
 }
 
-export interface DemoPRsResponse {
-  success: boolean;
-  data: {
-    demoPRs: string[];
-  };
-}

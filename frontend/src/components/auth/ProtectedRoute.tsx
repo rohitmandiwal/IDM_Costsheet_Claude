@@ -24,15 +24,19 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-destructive mb-2">Access Denied</h2>
-          <p className="text-muted-foreground">You do not have permission to access this page.</p>
+  if (allowedRoles && user) {
+    // Check if user has any of the allowed roles
+    const hasAllowedRole = user.roles?.some(role => allowedRoles.includes(role));
+    if (!hasAllowedRole) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-destructive mb-2">Access Denied</h2>
+            <p className="text-muted-foreground">You do not have permission to access this page.</p>
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
   }
 
   return <>{children}</>;

@@ -1,7 +1,11 @@
 const { User } = require('../models/userModel');
 
-const findUserByEmail = async (email) => {
-  return User.findOne({ where: { email } });
+const findUserByUsername = async (username) => {
+  // Defensive check: prevent undefined/null from reaching SQL WHERE clause
+  if (!username || typeof username !== 'string') {
+    return null;
+  }
+  return User.findOne({ where: { username } });
 };
 
 const findUserById = async (id) => {
@@ -16,7 +20,7 @@ const createUser = async (userData) => {
 };
 
 module.exports = {
-    findUserByEmail,
+    findUserByUsername,
     findUserById,
     createUser
 }

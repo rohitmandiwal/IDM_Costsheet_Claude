@@ -1,5 +1,6 @@
 const authService = require('../services/authService');
 const { RoleAssignment } = require('../models');
+const logger = require('../utils/logger');
 
 const register = async (req, res) => {
   try {
@@ -13,9 +14,16 @@ const register = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { token, user } = await authService.loginUser(req.body);
+    logger.info(`User logged in successfully: ${user.email}`);
     res.status(200).json({ success: true, token, user });
   } catch (error) {
-    res.status(401).json({ success: false, message: error.message });
+    // Log the error with context for debugging
+    const identifier = req.body?.username || req.body?.email || 'unknown';
+    logger.error(`Login failed for ${identifier}: ${error.message}`);
+
+    // Return appropriate status code based on error type
+    const statusCode = error.message.includes('required') ? 400 : 401;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };
 

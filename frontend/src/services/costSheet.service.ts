@@ -2,7 +2,7 @@ import { apiClient } from '../lib/api-client';
 import type { FetchPRRequest, FetchPRResponse, FetchPRLineItemsResponse, DemoPRsResponse, PRSummary, PRLineItem } from '../types/costSheet.types';
 
 export const costSheetService = {
-  async fetchPRs(requirementType: 'Technical' | 'Commercial', prNumbers: string[]): Promise<{ costSheetId: number; prSummaries: PRSummary[] }> {
+  async fetchPRs(requirementType: 'technical' | 'non_technical', prNumbers: string[]): Promise<{ costSheetId: number; prSummaries: PRSummary[] }> {
     const payload: FetchPRRequest = {
       requirementType,
       prNumbers,
@@ -20,8 +20,4 @@ export const costSheetService = {
     return response.data.data.lineItems;
   },
 
-  async getDemoPRs(): Promise<string[]> {
-    const response = await apiClient.get<DemoPRsResponse>('/api/cost-sheets/demo-prs');
-    return response.data.data.demoPRs;
-  },
 };

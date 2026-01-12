@@ -43,7 +43,6 @@ ApprovalRule.init(
   }
 );
 
-ApprovalRule.belongsTo(ValueBand, { foreignKey: 'value_band_id' });
-ValueBand.hasMany(ApprovalRule, { foreignKey: 'value_band_id' });
+
 
 module.exports = { ApprovalRule, categoryTypes };

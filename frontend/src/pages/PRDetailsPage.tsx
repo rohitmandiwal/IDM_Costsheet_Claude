@@ -1,224 +1,198 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download } from 'lucide-react';
-import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Badge } from '../components/ui/Badge';
+import { Checkbox } from '../components/ui/Checkbox';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
+import { costSheetService } from '../services/costSheet.service';
 import type { PRLineItem, PRSummary } from '../types/costSheet.types';
 
-interface PRDetailsState {
-  prSummaries: PRSummary[];
-  lineItems: PRLineItem[];
-  requirementType: 'Technical' | 'Commercial';
-}
+// Helper to generate a unique key for each line item
+const getLineItemKey = (item: PRLineItem) => `${item.prNumber}-${item.lineNumber}`;
 
 export function PRDetailsPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const state = location.state as PRDetailsState;
+    const navigate = useNavigate();
+    const location = useLocation();
+    
+    // State restoration logic
+    const getInitialState = () => {
+        if (location.state) {
+            return location.state;
+        }
+        const savedState = sessionStorage.getItem('prDetailsState');
+        return savedState ? JSON.parse(savedState) : null;
+    };
+    const initialState = getInitialState();
+    const { prSummaries, costSheetId, requirementType } = initialState || {};
 
-  const [selectedLineItems, setSelectedLineItems] = useState<Set<string>>(new Set());
-  const [lineItems, setLineItems] = useState<PRLineItem[]>([]);
+    const [lineItems, setLineItems] = useState<PRLineItem[]>([]);
+    const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+    const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    if (!state || !state.prSummaries) {
-      navigate('/create-cost-sheet');
-      return;
+    useEffect(() => {
+        if (!prSummaries || !costSheetId) {
+            navigate('/pr-entry');
+            return;
+        }
+
+        const fetchLineItems = async () => {
+            try {
+                setIsLoading(true);
+                const fetchedLineItems = await costSheetService.fetchPRLineItems(costSheetId);
+                setLineItems(fetchedLineItems);
+                setSelectedItems(new Set(fetchedLineItems.map(getLineItemKey)));
+            } catch (error) {
+                console.error("Failed to fetch PR line items:", error);
+                // Handle error state appropriately in a real app
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchLineItems();
+    }, [prSummaries, costSheetId, navigate]);
+    
+    if (!prSummaries || !costSheetId) {
+        return null; // Render nothing while redirecting
     }
 
-    const allLineItems = state.lineItems || [];
-    setLineItems(allLineItems);
+    const handleToggleAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedItems(new Set(lineItems.map(getLineItemKey)));
+        } else {
+            setSelectedItems(new Set());
+        }
+    };
 
-    const allItemIds = allLineItems.map((item) => `${item.lineNumber}-${item.materialCode}`);
-    setSelectedLineItems(new Set(allItemIds));
-  }, [state, navigate]);
+    const handleToggleItem = (item: PRLineItem, checked: boolean) => {
+        const key = getLineItemKey(item);
+        const newSelectedItems = new Set(selectedItems);
+        if (checked) {
+            newSelectedItems.add(key);
+        } else {
+            newSelectedItems.delete(key);
+        }
+        setSelectedItems(newSelectedItems);
+    };
+    
+    const handleStartCostSheet = () => {
+        const selectedLineItems = lineItems.filter(item => selectedItems.has(getLineItemKey(item)));
+        const stateToPass = {
+            selectedLineItems,
+            prSummaries,
+            costSheetId,
+            requirementType
+        };
+        sessionStorage.setItem('costSheetEditorState', JSON.stringify(stateToPass));
+        navigate('/cost-sheet-editor', {
+            state: stateToPass
+        });
+    };
+    
+    // Aggregate data for display
+    const allRequesters = [...new Set(prSummaries.map((pr: PRSummary) => pr.requester))].join(', ');
 
-  if (!state || !state.prSummaries) {
-    return null;
-  }
+    return (
+        <div className="bg-gray-50 min-h-screen p-8">
+            <div className="max-w-7xl mx-auto">
+                {/* Header Section */}
+                <div className="flex justify-between items-center mb-6">
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-800">Purchase Requisition Detail</h1>
+                        <p className="text-sm text-gray-500">Select items from the fetched PRs to build your cost sheet.</p>
+                    </div>
+                    <Button variant="outline" onClick={() => navigate(-1)}>
+                        <ArrowLeft size={16} className="mr-2" />
+                        Back
+                    </Button>
+                </div>
 
-  const { prSummaries, requirementType } = state;
+                {/* Info Cards Section */}
+                <div className="grid md:grid-cols-3 gap-6 mb-6">
+                    <InfoCard title="PR Numbers" value={prSummaries.map((pr: PRSummary) => pr.prNumber).join(', ')} />
+                    <InfoCard title="Primary Requester" value={allRequesters} />
+                    <div className="grid grid-cols-2 col-span-1 gap-6">
+                      <InfoCard title="Total Line Items" value={lineItems.length} isNumeric={true} />
+                      <InfoCard title="Selected for Cost Sheet" value={selectedItems.size} isNumeric={true} highlight={true} />
+                    </div>
+                </div>
 
-  const handleToggleLineItem = (lineNumber: number, materialCode: string) => {
-    const itemId = `${lineNumber}-${materialCode}`;
-    setSelectedLineItems((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(itemId)) {
-        newSet.delete(itemId);
-      } else {
-        newSet.add(itemId);
-      }
-      return newSet;
-    });
-  };
+                {/* Line Items Table */}
+                <div className="bg-white p-6 rounded-lg border border-gray-200">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-lg font-semibold">PR Line Items (All Selected PRs)</h2>
+                        <Button variant="outline"><Download size={16} className="mr-2"/>Download PR</Button>
+                    </div>
 
-  const handleToggleAll = () => {
-    if (selectedLineItems.size === lineItems.length) {
-      setSelectedLineItems(new Set());
-    } else {
-      const allItemIds = lineItems.map((item) => `${item.lineNumber}-${item.materialCode}`);
-      setSelectedLineItems(new Set(allItemIds));
-    }
-  };
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-12">
+                                    <Checkbox
+                                        checked={selectedItems.size === lineItems.length && lineItems.length > 0}
+                                        onCheckedChange={handleToggleAll}
+                                    />
+                                </TableHead>
+                                <TableHead>PR Number</TableHead>
+                                <TableHead>Line</TableHead>
+                                <TableHead>Part Code</TableHead>
+                                <TableHead>Description</TableHead>
+                                <TableHead className="text-right">Qty</TableHead>
+                                <TableHead>UoM</TableHead>
+                                <TableHead>Plant</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {lineItems.map((item) => (
+                                <TableRow key={getLineItemKey(item)}>
+                                    <TableCell>
+                                        <Checkbox
+                                            checked={selectedItems.has(getLineItemKey(item))}
+                                            onCheckedChange={(checked) => handleToggleItem(item, !!checked)}
+                                        />
+                                    </TableCell>
+                                    <TableCell>{item.prNumber}</TableCell>
+                                    <TableCell>{item.lineNumber}</TableCell>
+                                    <TableCell>{item.partCode}</TableCell>
+                                    <TableCell>{item.description}</TableCell>
+                                    <TableCell className="text-right">{item.quantity}</TableCell>
+                                    <TableCell>{item.uom}</TableCell>
+                                    <TableCell>{item.plant}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
 
-  const handleBack = () => {
-    navigate('/create-cost-sheet');
-  };
-
-  const handleStartCostSheet = () => {
-    const selectedItems = lineItems.filter((item) =>
-      selectedLineItems.has(`${item.lineNumber}-${item.materialCode}`)
+                <div className="flex justify-end mt-8">
+                    <Button 
+                        size="lg" 
+                        onClick={handleStartCostSheet} 
+                        disabled={selectedItems.size === 0}
+                    >
+                        Start Cost Sheet ({selectedItems.size} items)
+                    </Button>
+                </div>
+            </div>
+        </div>
     );
+}
 
-    navigate('/cost-sheet-editor', {
-      state: {
-        prSummaries,
-        lineItems: selectedItems,
-        requirementType,
-      },
-    });
-  };
-
-  const handleDownloadPR = () => {
-    console.log('Download PR');
-  };
-
-  const prNumbers = prSummaries.map((pr) => pr.prNumber);
-  const totalLineItems = lineItems.length;
-  const selectedCount = selectedLineItems.size;
-
-  const createdDateRange = prSummaries.length > 0 ? '15 Jan 2026 - 15 Jan 2026' : '-';
-  const primaryRequester = prSummaries.length > 0 ? prSummaries[0].requester : '-';
-
-  return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Purchase Requisition Details</h1>
-        <p className="text-gray-600">Review PR line items and select items to include in cost sheet</p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-6 mb-8">
-        <Card className="p-6">
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-sm font-medium text-gray-600 mb-2">PR Numbers ({prNumbers.length})</h3>
-              <div className="flex flex-wrap gap-2">
-                {prNumbers.map((prNumber) => (
-                  <Badge key={prNumber} className="bg-[#0B61FF] text-white px-3 py-1">
-                    {prNumber}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-600 mb-1">Primary Requester</h3>
-              <p className="text-base text-gray-900">{primaryRequester}</p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-600 mb-1">Created Date Range</h3>
-              <p className="text-base text-gray-900">{createdDateRange}</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="grid grid-cols-2 gap-8">
-            <div>
-              <h3 className="text-sm font-medium text-gray-600 mb-2">Total Line Items</h3>
-              <p className="text-4xl font-bold text-gray-900">{totalLineItems}</p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-600 mb-2">Selected for Cost Sheet</h3>
-              <p className="text-4xl font-bold text-[#0B61FF]">{selectedCount}</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">PR Line Items (All Selected PRs)</h2>
-          <Button
-            variant="outline"
-            onClick={handleDownloadPR}
-            className="border-black text-black hover:bg-gray-50"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Download PR
-          </Button>
+// Sub-component for info cards to keep the main component clean
+function InfoCard({ title, value, isNumeric = false, highlight = false }: {
+    title: string;
+    value: string | number;
+    isNumeric?: boolean;
+    highlight?: boolean;
+}) {
+    return (
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+            <p className="text-sm text-gray-500 mb-1">{title}</p>
+            {isNumeric ? (
+                <p className={`text-3xl font-bold ${highlight ? 'text-blue-600' : 'text-gray-800'}`}>{value}</p>
+            ) : (
+                <p className="font-semibold text-gray-800 truncate">{value}</p>
+            )}
         </div>
-
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12">
-                <input
-                  type="checkbox"
-                  checked={selectedLineItems.size === lineItems.length && lineItems.length > 0}
-                  onChange={handleToggleAll}
-                  className="w-4 h-4 rounded border-gray-300"
-                />
-              </TableHead>
-              <TableHead>PR Number</TableHead>
-              <TableHead>Line</TableHead>
-              <TableHead>Part Code</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Qty</TableHead>
-              <TableHead>UoM</TableHead>
-              <TableHead>Plant</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {lineItems.map((item) => {
-              const itemId = `${item.lineNumber}-${item.materialCode}`;
-              const isSelected = selectedLineItems.has(itemId);
-
-              return (
-                <TableRow key={itemId}>
-                  <TableCell>
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => handleToggleLineItem(item.lineNumber, item.materialCode)}
-                      className="w-4 h-4 rounded border-gray-300"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Badge className="bg-gray-200 text-gray-900 px-2 py-1">
-                      {prSummaries[0]?.prNumber || '-'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{item.lineNumber}</TableCell>
-                  <TableCell>{item.materialCode}</TableCell>
-                  <TableCell>{item.description}</TableCell>
-                  <TableCell>{item.quantity}</TableCell>
-                  <TableCell>{item.unit}</TableCell>
-                  <TableCell>{item.plant}</TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-
-        <div className="flex items-center justify-between mt-6 pt-6 border-t">
-          <Button
-            variant="outline"
-            onClick={handleBack}
-            className="border-black text-black hover:bg-gray-50"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-          <Button
-            onClick={handleStartCostSheet}
-            disabled={selectedCount === 0}
-            className="bg-[#030213] hover:bg-[#030213]/90 text-white"
-          >
-            Start Cost Sheet ({selectedCount} items)
-          </Button>
-        </div>
-      </Card>
-    </div>
-  );
+    );
 }

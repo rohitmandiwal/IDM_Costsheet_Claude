@@ -1,7 +1,5 @@
 const { DataTypes, Model } = require('sequelize');
 const { sequelize } = require('../config/database');
-const { CostSheet } = require('./costSheetModel');
-const { SapPrLineItem } = require('./sapPrLineItemModel');
 const { approvalStatuses } = require('./costSheetModel');
 
 class CostSheetLineItem extends Model {}
@@ -58,11 +56,5 @@ CostSheetLineItem.init(
     updatedAt: 'updated_at',
   }
 );
-
-CostSheetLineItem.belongsTo(CostSheet, { foreignKey: 'cost_sheet_id' });
-CostSheet.hasMany(CostSheetLineItem, { foreignKey: 'cost_sheet_id' });
-
-CostSheetLineItem.belongsTo(SapPrLineItem, { foreignKey: 'sap_line_item_id' });
-SapPrLineItem.hasMany(CostSheetLineItem, { foreignKey: 'sap_line_item_id' });
 
 module.exports = { CostSheetLineItem };
