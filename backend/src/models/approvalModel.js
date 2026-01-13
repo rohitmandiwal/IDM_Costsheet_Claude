@@ -5,7 +5,7 @@ const { CostSheetLineItem } = require('./costSheetLineItemModel');
 const { User } = require('./userModel');
 const { approvalStatuses } = require('./costSheetModel');
 
-class Approval extends Model {}
+class Approval extends Model { }
 
 Approval.init(
   {
@@ -31,24 +31,24 @@ Approval.init(
       },
     },
     level: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
+      type: DataTypes.INTEGER,
+      allowNull: false,
     },
     approver_id: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        references: {
-            model: 'users',
-            key: 'id',
-        },
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
     },
     status: {
-        type: 'approval_status', // Use the native PostgreSQL enum type
-        defaultValue: 'pending',
+      type: 'approval_status', // Use the native PostgreSQL enum type
+      defaultValue: 'pending',
     },
     comments: {
-        type: DataTypes.TEXT,
-        allowNull: false,
+      type: DataTypes.TEXT,
+      allowNull: false,
     },
     created_at: {
       type: DataTypes.DATE,
@@ -74,7 +74,7 @@ CostSheet.hasMany(Approval, { foreignKey: 'cost_sheet_id' });
 Approval.belongsTo(CostSheetLineItem, { foreignKey: 'line_item_id' });
 CostSheetLineItem.hasMany(Approval, { foreignKey: 'line_item_id' });
 
-Approval.belongsTo(User, { foreignKey: 'approver_id' });
+Approval.belongsTo(User, { foreignKey: 'approver_id', as: 'approver' });
 User.hasMany(Approval, { foreignKey: 'approver_id' });
 
 module.exports = { Approval };

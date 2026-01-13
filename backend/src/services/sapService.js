@@ -34,6 +34,7 @@ const fetchPRsFromSAP = async (prNumbers) => {
     requester: pr.requester,
     lineItemCount: pr.sap_pr_line_items.length,
     estimatedValue: pr.est_value,
+    category: pr.category, // Added category
     lineItems: pr.sap_pr_line_items.map(item => ({
       prNumber: item.pr_number,
       lineNumber: item.line_item_number,
@@ -76,7 +77,7 @@ const createPoInSap = async (poData) => {
   logger.info(`Simulating PO creation in SAP for: ${JSON.stringify(poData.costSheetId)}`);
   // This function remains a simulation as per CLAUDE.md, but the mock PO number generation is retained.
   // In a real scenario, this would call the actual SAP API.
-  await new Promise(resolve => setTimeout(resolve, 500)); 
+  await new Promise(resolve => setTimeout(resolve, 500));
 
   const poNumber = `45000${Math.floor(Math.random() * 100000)}`;
 
@@ -88,7 +89,7 @@ const createPoInSap = async (poData) => {
 };
 
 module.exports = {
-    fetchPRsFromSAP,
-    searchVendors,
-    createPoInSap,
+  fetchPRsFromSAP,
+  searchVendors,
+  createPoInSap,
 }

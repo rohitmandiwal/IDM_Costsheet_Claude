@@ -1,5 +1,5 @@
 import { apiClient } from '../lib/api-client';
-import type { InitiatorDashboardData, ApproverDashboardData, AdminDashboardData } from '../types/dashboard.types';
+import type { UnifiedDashboardData, ApproverDashboardData, AdminDashboardData } from '../types/dashboard.types';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -7,15 +7,11 @@ interface ApiResponse<T> {
 }
 
 export const dashboardService = {
-  async getUnifiedDashboard(): Promise<InitiatorDashboardData> {
-    const response = await apiClient.get<ApiResponse<InitiatorDashboardData>>('/api/dashboard');
+  async getUnifiedDashboard(): Promise<UnifiedDashboardData> {
+    const response = await apiClient.get<ApiResponse<UnifiedDashboardData>>('/api/dashboard');
     return response.data.data;
   },
 
-  async getInitiatorDashboard(): Promise<InitiatorDashboardData> {
-    const response = await apiClient.get<ApiResponse<InitiatorDashboardData>>('/api/dashboard/initiator');
-    return response.data.data;
-  },
 
   async getApproverDashboard(): Promise<ApproverDashboardData> {
     const response = await apiClient.get<ApiResponse<ApproverDashboardData>>('/api/dashboard/approver');

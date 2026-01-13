@@ -22,7 +22,9 @@ const determineApprovalChain = async (costSheetId) => {
     throw new Error('Cost Sheet not found');
   }
 
-  const totalValue = costSheet.cost_sheet_line_items.reduce((sum, item) => sum + (item.final_order_value || 0), 0);
+  // Use the total finalized value from the cost sheet header
+  // Fallback to 0 if not set (e.g., specific logic for 0 value can range start at 0)
+  const totalValue = parseFloat(costSheet.final_order_value) || 0;
   const requirementType = costSheet.requirement_type; // 'technical' or 'non_technical'
 
   // Find matching approval rules
@@ -74,7 +76,7 @@ const determineApprovalChain = async (costSheetId) => {
   // Add CFO approval if payment terms deviation is present and not already in chain
   if (paymentTermsDeviationPresent && !finalApprovalChain.some(item => item.role === 'cfo' || item.role.includes('GCO'))) {
     // Assuming CFO is always L5 or L6 if added this way, adjust level as needed based on matrix design.
-    // For simplicity, let's add it as a new level after existing ones or at a fixed high level.
+    // For simplicity, let's add it as an additional step or inserting at a specific level.
     // This logic might need to be more sophisticated based on specific client rules for deviation approvals.
     // For now, appending it as an additional step or inserting at a specific level.
     const cfoLevel = finalApprovalChain.length > 0 ? finalApprovalChain[finalApprovalChain.length - 1].level + 1 : 1;
@@ -87,24 +89,111 @@ const determineApprovalChain = async (costSheetId) => {
 };
 
 const getNextApprover = async (costSheetId, currentApprovalLevel) => {
-    const approvalChain = await determineApprovalChain(costSheetId);
+  const approvalChain = await determineApprovalChain(costSheetId);
 
-    if (!approvalChain || approvalChain.length === 0) {
-        throw new Error('No approval chain defined for this cost sheet.');
-    }
+  if (!approvalChain || approvalChain.length === 0) {
+    throw new Error('No approval chain defined for this cost sheet.');
+  }
 
-    // Find the next pending level based on the currentApprovalLevel
-    // If currentApprovalLevel is 0 (meaning not yet started approval), the next is the first in the chain.
-    const nextLevelIndex = approvalChain.findIndex(item => item.level > currentApprovalLevel);
+  // Find the next pending level based on the currentApprovalLevel
+  // If currentApprovalLevel is 0 (meaning not yet started approval), the next is the first in the chain.
+  const nextLevelIndex = approvalChain.findIndex(item => item.level > currentApprovalLevel);
 
-    if (nextLevelIndex !== -1) {
-        return approvalChain[nextLevelIndex];
-    } else {
-        return null; // All levels approved or no further approvers
-    }
+  if (nextLevelIndex !== -1) {
+    return approvalChain[nextLevelIndex];
+  } else {
+    return null; // All levels approved or no further approvers
+  }
+};
+
+const getApprovalChainForCostSheet = async (costSheetId) => {
+  const approvalChain = await determineApprovalChain(costSheetId);
+  const { Approval } = require('../models');
+
+  // Fetch actual approval records for this cost sheet
+  const approvals = await Approval.findAll({
+    where: { cost_sheet_id: costSheetId },
+    include: [
+      {
+        model: User,
+        as: 'approver',
+        attributes: ['id', 'full_name']
+      }
+    ],
+    order: [['level', 'ASC']]
+  });
+
+  // Map approval chain with actual statuses
+  const approvalChainWithStatus = approvalChain.map(chainItem => {
+    const approval = approvals.find(a => a.level === chainItem.level);
+    return {
+      level: chainItem.level,
+      role: chainItem.role,
+      status: approval ? approval.status : 'pending',
+      approver_name: approval?.approver?.full_name || null,
+      comments: approval?.comments || null,
+      updated_at: approval?.updated_at || null
+    };
+  });
+
+  return approvalChainWithStatus;
+};
+
+/**
+ * Calculate approval chain dynamically based on total value and requirement type
+ * This is used for real-time preview before cost sheet is created/submitted
+ */
+const calculateApprovalChainByValue = async (totalValue, requirementType) => {
+  logger.info(`Calculating approval chain for value: ${totalValue}, type: ${requirementType}`);
+
+  // Find matching approval rules
+  const approvalRules = await ApprovalRule.findAll({
+    where: {
+      category: requirementType,
+    },
+    include: [
+      {
+        model: ValueBand,
+        where: {
+          min_value: { [Op.lte]: totalValue },
+          [Op.or]: [
+            { max_value: { [Op.gte]: totalValue } },
+            { max_value: null },
+          ],
+        },
+        required: true,
+      },
+      {
+        model: ApproverLevel,
+        as: 'approver_levels',
+        order: [['level', 'ASC']],
+      },
+    ],
+    order: [[ValueBand, 'min_value', 'ASC']],
+  });
+
+  let finalApprovalChain = [];
+
+  // Select the most specific rule
+  if (approvalRules.length > 0) {
+    const bestMatchRule = approvalRules[approvalRules.length - 1];
+    finalApprovalChain = bestMatchRule.approver_levels.map(level => ({
+      level: level.level,
+      role: level.approver_role,
+      status: 'pending', // All pending for preview
+      approver_name: null,
+      comments: null,
+      updated_at: null
+    }));
+  }
+
+  logger.info(`Calculated approval chain: ${JSON.stringify(finalApprovalChain)}`);
+  return finalApprovalChain;
 };
 
 module.exports = {
   determineApprovalChain,
   getNextApprover,
+  getApprovalChainForCostSheet,
+  calculateApprovalChainByValue,
 };

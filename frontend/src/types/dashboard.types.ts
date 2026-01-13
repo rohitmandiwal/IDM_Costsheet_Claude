@@ -7,14 +7,20 @@ export interface PurchaseRequisition {
   createdAt: string;
 }
 
-export interface CostSheet {
+export interface DraftCostSheet {
+  id: string;
   costSheetNumber: string;
-  prNumber: string;
-  amount: number;
-  type: 'Technical' | 'Commercial';
-  status: string;
-  createdAt: string;
-  progress?: number;
+  prs: string[];
+  updatedAt: string;
+  requirementType: 'Technical' | 'Non-Technical';
+  progress: number;
+}
+
+export interface UnifiedDashboardData {
+  totalActiveCostSheets: number;
+  pendingApprovals: Approval[];
+  draftCostSheets: DraftCostSheet[];
+  recentPRs: PurchaseRequisition[];
 }
 
 export interface Approval {

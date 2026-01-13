@@ -1,11 +1,12 @@
 export interface PRLineItem {
+  id?: number;
   prNumber: string;
   lineNumber: number;
-  materialCode: string;
+  partCode: string;
   description: string;
   quantity: number;
-  unit: string;
-  estimatedValue: number;
+  uom: string;
+  estimatedValue?: number;
   deliveryDate?: string;
   plant: string;
   prPrice?: number;
@@ -19,6 +20,7 @@ export interface PRSummary {
   requester: string;
   lineItemCount: number;
   estimatedValue: number;
+  lineItems?: PRLineItem[];
 }
 
 export interface FetchPRRequest {
@@ -29,7 +31,7 @@ export interface FetchPRRequest {
 export interface FetchPRResponse {
   success: boolean;
   data: {
-    costSheetId: number;
+    costSheetId?: number;
     prSummaries: PRSummary[];
   };
 }

@@ -15,7 +15,7 @@ export function PRSummaryPage() {
 
   const { prSummaries, costSheetId, requirementType } = stateFromLocation || stateFromSession || { prSummaries: [], costSheetId: null, requirementType: 'technical' };
 
-  if (!prSummaries || prSummaries.length === 0 || !costSheetId) {
+  if (!prSummaries || prSummaries.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-gray-50">
         <h2 className="text-xl font-semibold text-gray-700 mb-4">No PR Summary data found.</h2>
@@ -25,7 +25,7 @@ export function PRSummaryPage() {
       </div>
     );
   }
-  
+
   const handleFetchDifferentPRs = () => {
     // Navigate back to the create page to start over
     navigate('/pr-entry');
@@ -33,13 +33,13 @@ export function PRSummaryPage() {
 
   const handleContinue = () => {
     // Navigate to the next step, the PR line item selection page
-    const stateToPass = { 
-      prSummaries, 
+    const stateToPass = {
+      prSummaries,
       costSheetId,
       requirementType
     };
     sessionStorage.setItem('prDetailsState', JSON.stringify(stateToPass)); // Persist for next page
-    navigate('/pr-details', { 
+    navigate('/pr-details', {
       state: stateToPass
     });
   };
@@ -70,26 +70,26 @@ export function PRSummaryPage() {
         </div>
 
         <div className="bg-white p-6 rounded-lg border border-gray-200">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-lg font-semibold text-gray-800">Review Fetched Purchase Requisitions</h2>
-                <Button variant="outline" onClick={handleFetchDifferentPRs}>
-                    Fetch Different PRs
-                </Button>
-            </div>
-            <p className="text-sm text-gray-500 mb-6">Verify PR details and enter/edit quantities before proceeding</p>
-            
-            <div className="space-y-4">
-                {prSummaries.map((pr: PRSummary) => (
-                    <PRSummaryCard key={pr.prNumber} pr={pr} requirementType={requirementType} />
-                ))}
-            </div>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-semibold text-gray-800">Review Fetched Purchase Requisitions</h2>
+            <Button variant="outline" onClick={handleFetchDifferentPRs}>
+              Fetch Different PRs
+            </Button>
+          </div>
+          <p className="text-sm text-gray-500 mb-6">Verify PR details and enter/edit quantities before proceeding</p>
+
+          <div className="space-y-4">
+            {prSummaries.map((pr: PRSummary) => (
+              <PRSummaryCard key={pr.prNumber} pr={pr} requirementType={requirementType} />
+            ))}
+          </div>
         </div>
 
         <div className="flex justify-between items-center mt-8">
-            <Button variant="outline" onClick={() => navigate('/dashboard')}>Cancel</Button>
-            <Button onClick={handleContinue}>
-                Continue to Cost Sheet Builder
-            </Button>
+          <Button variant="outline" onClick={() => navigate('/dashboard')}>Cancel</Button>
+          <Button onClick={handleContinue}>
+            Continue to Cost Sheet Builder
+          </Button>
         </div>
       </div>
     </div>
@@ -97,40 +97,40 @@ export function PRSummaryPage() {
 }
 
 function PRSummaryCard({ pr, requirementType }: { pr: PRSummary; requirementType: 'Technical' | 'Commercial' }) {
-    return (
-        <div className="border border-gray-200 rounded-lg p-4 bg-white">
-            <div className="flex items-start gap-4">
-                <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-1" />
-                <div className="flex-grow">
-                    <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-gray-800">PR {pr.prNumber}</h3>
-                        <Badge variant="outline" className="text-green-600 border-green-300">valid</Badge>
-                        <Badge className={requirementType === 'Technical' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}>
-                            {requirementType === 'Technical' ? 'TECH' : 'COMM'}
-                        </Badge>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-4">{pr.description}</p>
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div>
-                            <p className="text-gray-500">Plant</p>
-                            <p className="font-medium text-gray-800">{pr.plant}</p>
-                        </div>
-                        <div>
-                            <p className="text-gray-500">Requester</p>
-                            <p className="font-medium text-gray-800">{pr.requester}</p>
-                        </div>
-                        <div>
-                            <p className="text-gray-500">Line Items</p>
-                            <p className="font-medium text-gray-800">{pr.lineItemCount}</p>
-                        </div>
-                        <div>
-                            <p className="text-gray-500">Est. Value</p>
-                            <p className="font-medium text-gray-800">INR {pr.estimatedValue.toLocaleString()}</p>
-                        </div>
-                    </div>
-                </div>
+  return (
+    <div className="border border-gray-200 rounded-lg p-4 bg-white">
+      <div className="flex items-start gap-4">
+        <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-1" />
+        <div className="flex-grow">
+          <div className="flex items-center gap-3 mb-2">
+            <h3 className="font-semibold text-gray-800">PR {pr.prNumber}</h3>
+            <Badge variant="outline" className="text-green-600 border-green-300">valid</Badge>
+            <Badge className={requirementType === 'Technical' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}>
+              {requirementType === 'Technical' ? 'TECH' : 'COMM'}
+            </Badge>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">{pr.description}</p>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <p className="text-gray-500">Plant</p>
+              <p className="font-medium text-gray-800">{pr.plant}</p>
             </div>
+            <div>
+              <p className="text-gray-500">Requester</p>
+              <p className="font-medium text-gray-800">{pr.requester}</p>
+            </div>
+            <div>
+              <p className="text-gray-500">Line Items</p>
+              <p className="font-medium text-gray-800">{pr.lineItemCount}</p>
+            </div>
+            <div>
+              <p className="text-gray-500">Est. Value</p>
+              <p className="font-medium text-gray-800">INR {pr.estimatedValue.toLocaleString()}</p>
+            </div>
+          </div>
         </div>
-    );
+      </div>
+    </div>
+  );
 }

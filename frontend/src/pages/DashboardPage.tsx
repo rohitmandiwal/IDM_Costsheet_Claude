@@ -1,5 +1,5 @@
 import { useAuth } from '../contexts/AuthContext';
-import { InitiatorDashboard } from './InitiatorDashboard';
+import { Dashboard } from './Dashboard';
 
 export function DashboardPage() {
   const { user, isLoading } = useAuth();
@@ -20,6 +20,5 @@ export function DashboardPage() {
     );
   }
 
-  // Unified dashboard for all users
-  return <InitiatorDashboard />;
+  return <Dashboard />;
 }

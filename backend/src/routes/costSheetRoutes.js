@@ -6,6 +6,8 @@ const { requireRole } = require('../middleware/roleMiddleware');
 const router = express.Router();
 
 router.post('/fetch-pr', protect, requireRole('initiator', 'admin'), costSheetController.fetchPR);
+router.post('/previous-purchase-records', protect, requireRole('initiator', 'approver_l1', 'approver_l2', 'approver_l3', 'approver_l4', 'approver_l5', 'approver_l6', 'admin'), costSheetController.getPreviousPurchaseRecords); // Added
+router.post('/calculate-approval-chain', protect, requireRole('initiator', 'approver_l1', 'approver_l2', 'approver_l3', 'approver_l4', 'approver_l5', 'approver_l6', 'admin'), costSheetController.calculateApprovalChain); // Dynamic approval chain calculation
 
 
 // Cost Sheet Management

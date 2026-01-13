@@ -54,10 +54,9 @@ const fetchPR = async (req, res) => {
 
     logger.info(`Successfully created cost sheet ${result.costSheetId} for user ${initiatorId}`);
 
-    res.status(201).json({
+    res.status(200).json({
       success: true,
       data: {
-        costSheetId: result.costSheetId,
         prSummaries: result.prSummaries,
       },
     });
@@ -169,7 +168,7 @@ const selectVendorAndDeviationController = async (req, res) => {
 const submitCostSheetController = async (req, res) => {
   try {
     const { id: costSheetId } = req.params;
-    const { comments } = req.body;
+    const { comments } = req.body || {};
     const initiatorId = req.user?.id;
 
     if (!initiatorId) {
@@ -227,6 +226,64 @@ const generatePoRequestController = async (req, res) => {
   }
 };
 
+const getPreviousPurchaseRecordsController = async (req, res) => {
+  try {
+    const { partCode, vendorCodes } = req.body; // Expecting POST request body filter params
+    // or GET query params: req.query.partCode, req.query.vendorCodes (comma separated or repeats)
+    // Let's stick to POST for array handling or GET with query params.
+    // Given the requirement "Dynamic Lookup", GET with query params is cleaner but arrays in query params can be tricky. POST is safer for arrays.
+    // However, usually 'fetch' suggests GET. Let's use POST for searching/filtering with complex inputs.
+
+    // Actually, req.query is standard for GET. Let's try GET first.
+    // URL: /previous-purchase-records?partCode=XYZ&vendorCodes=V1,V2
+    let vCodes = [];
+    if (req.method === 'GET') {
+      const { partCode: pCode, vendorCodes: vCodesStr } = req.query;
+      if (!pCode) {
+        return res.status(400).json({ success: false, message: 'partCode is required' });
+      }
+      if (vCodesStr) {
+        vCodes = vCodesStr.split(',');
+      }
+      const records = await require('../services/costSheetService').getPreviousPurchaseRecords(pCode, vCodes);
+      return res.status(200).json({ success: true, data: records });
+    } else {
+      // Fallback or POST implementation
+      const { partCode, vendorCodes } = req.body;
+      if (!partCode) {
+        return res.status(400).json({ success: false, message: 'partCode is required' });
+      }
+      const records = await require('../services/costSheetService').getPreviousPurchaseRecords(partCode, vendorCodes);
+      return res.status(200).json({ success: true, data: records });
+    }
+  } catch (error) {
+    logger.error(`Error in getPreviousPurchaseRecords controller: ${error.message}`);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const calculateApprovalChainController = async (req, res) => {
+  try {
+    const { totalValue, requirementType } = req.body;
+
+    if (totalValue === undefined || totalValue === null) {
+      return res.status(400).json({ success: false, message: 'totalValue is required' });
+    }
+
+    if (!requirementType || (requirementType !== 'technical' && requirementType !== 'non_technical')) {
+      return res.status(400).json({ success: false, message: 'Valid requirementType (technical or non_technical) is required' });
+    }
+
+    const { calculateApprovalChainByValue } = require('../services/approvalService');
+    const approvalChain = await calculateApprovalChainByValue(parseFloat(totalValue), requirementType);
+
+    res.status(200).json({ success: true, data: approvalChain });
+  } catch (error) {
+    logger.error(`Error in calculateApprovalChain controller: ${error.message}`);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   fetchPR,
   createCostSheet: createCostSheetController,
@@ -239,4 +296,6 @@ module.exports = {
   submitCostSheet: submitCostSheetController,
   performApprovalAction: performApprovalActionController,
   generatePoRequest: generatePoRequestController,
+  getPreviousPurchaseRecords: getPreviousPurchaseRecordsController,
+  calculateApprovalChain: calculateApprovalChainController,
 };

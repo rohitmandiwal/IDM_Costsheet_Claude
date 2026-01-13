@@ -3,7 +3,7 @@ const dashboardService = require('../services/dashboardService');
 const getUnifiedDashboard = async (req, res) => {
   try {
     const user = req.user;
-    const metrics = await dashboardService.getInitiatorDashboardMetrics(user.id);
+    const metrics = await dashboardService.getUnifiedDashboardMetrics(user.id, user.roles);
     res.status(200).json({ success: true, data: metrics });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

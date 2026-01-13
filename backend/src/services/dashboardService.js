@@ -1,19 +1,20 @@
-const { CostSheet, User, SapPr, Approval, RoleAssignment, AuditLog, ApproverLevel, CostSheetPr, CostSheetLineItem } = require('../models');
+const { CostSheet, User, SapPr, Approval, RoleAssignment, AuditLog, ApproverLevel, CostSheetPr, CostSheetLineItem, SapPrLineItem } = require('../models');
 const { Op } = require('sequelize');
 
 const getRecentPRs = async () => {
-    const recentPrs = await SapPr.findAll({
-        order: [['release_date', 'DESC']],
-        limit: 5
-    });
+  const recentPrs = await SapPr.findAll({
+    order: [['release_date', 'DESC']],
+    limit: 5
+  });
 
-    return recentPrs.map(pr => ({
-        prNumber: pr.pr_number,
-        description: pr.description,
-        plant: pr.plant_code,
-        requirement_type: pr.category,
-        createdAt: pr.release_date
-    }));
+  return recentPrs.map(pr => ({
+    prNumber: pr.pr_number,
+    description: pr.description,
+    plant: pr.plant_code,
+    type: pr.category === 'technical' ? 'Technical' : 'Non-Technical',
+    createdAt: pr.release_date,
+    lineItems: 1, // Placeholder, as SapPr model doesn't have lineItems directly in this context
+  }));
 };
 
 const getInitiatorDashboardMetrics = async (userId) => {
@@ -90,16 +91,35 @@ const getApproverDashboardMetrics = async (userId, userRoles) => {
   const pendingApprovals = await CostSheet.findAll({
     where: pendingCostSheetsWhereClause,
     include: [
-        { model: User, as: 'initiator', attributes: ['full_name'] },
-        {
-            model: Approval,
-            as: 'approvals',
-            where: {
-                status: 'pending',
-                level: { [Op.in]: levelsUserCanApprove },
-            },
-            required: false // LEFT JOIN to get all cost sheets, even if no matching pending approval for this user
-        }
+      { model: User, as: 'initiator', attributes: ['full_name'] },
+      {
+        model: CostSheetPr,
+        as: 'cost_sheet_prs', // Ensure this alias matches your association
+        include: [
+          {
+            model: SapPr,
+          }
+        ]
+      },
+      {
+        model: CostSheetLineItem,
+        as: 'cost_sheet_line_items',
+        include: [
+          {
+            model: SapPrLineItem,
+            attributes: ['description']
+          }
+        ]
+      },
+      {
+        model: Approval,
+        as: 'approvals',
+        where: {
+          status: 'pending',
+          ...(userRoles.includes('admin') ? {} : { level: { [Op.in]: levelsUserCanApprove } }),
+        },
+        required: false // LEFT JOIN
+      }
     ],
     order: [['created_at', 'DESC']],
     limit: 10,
@@ -118,21 +138,28 @@ const getApproverDashboardMetrics = async (userId, userRoles) => {
     pendingCount,
     technicalCount,
     commercialCount,
-    totalValue: parseFloat(totalValue.toString()),
-    pendingApprovals: pendingApprovals.map((cs) => ({
-      id: cs.id,
-      costSheetNumber: cs.cost_sheet_number,
-      description: cs.cost_sheet_line_items ? cs.cost_sheet_line_items.map(li => li.description).join(', ') : '',
-      totalValue: parseFloat(cs.final_order_value.toString()),
-      status: cs.status,
-      createdAt: cs.created_at,
-      submittedAt: cs.updated_at, // Assuming submittedAt is when status changed from draft to pending
-      requirementType: cs.requirement_type,
-      createdBy: cs.initiator ? cs.initiator.full_name : 'N/A',
-      currentLevel: cs.current_approval_level, // Make sure this column exists in your DB and model
-      prs: cs.cost_sheet_prs ? cs.cost_sheet_prs.map(csp => csp.pr_number) : [],
-      // Add daysAgo calculation if needed, requires moment.js or similar
-    })),
+    totalValue: parseFloat((totalValue || 0).toString()),
+    pendingApprovals: pendingApprovals.map((cs) => {
+      const estimatedPrValue = cs.cost_sheet_prs ? cs.cost_sheet_prs.reduce((sum, csp) => {
+        const sapPr = csp.SapPr || csp.sap_pr;
+        return sum + (sapPr ? parseFloat(sapPr.est_value || 0) : 0);
+      }, 0) : 0;
+      const displayValue = parseFloat((cs.final_order_value || 0).toString()) || estimatedPrValue;
+
+      return {
+        // id: cs.id, 
+        id: cs.cost_sheet_number,
+        prNumbers: cs.cost_sheet_prs ? cs.cost_sheet_prs.map(csp => csp.pr_number).join(', ') : '',
+        description: cs.cost_sheet_line_items ? cs.cost_sheet_line_items.map(li => li.SapPrLineItem ? li.SapPrLineItem.description : 'No Description').join(', ') : 'No Description',
+        value: displayValue,
+        // status: cs.status, 
+        submittedDate: cs.updated_at ? new Date(cs.updated_at).toLocaleDateString() : 'N/A',
+        type: cs.requirement_type === 'technical' ? 'TECH' : 'COMM',
+        createdBy: cs.initiator ? cs.initiator.full_name : 'Unknown',
+        level: `Level ${cs.current_approval_level}`,
+        priority: 'Medium',
+      };
+    }),
     draftCostSheets: draftCostSheets.map((cs) => ({
       id: cs.id,
       costSheetNumber: cs.cost_sheet_number,
@@ -166,6 +193,123 @@ const getAdminDashboardMetrics = async () => {
     activeCostSheets,
   };
 };
+
+const getUnifiedDashboardMetrics = async (userId, userRoles) => {
+  // Get data for Initiator section
+  const initiatorMetrics = await getInitiatorDashboardMetrics(userId);
+
+  // Get data for Approver section
+  const pendingStatuses = ['pending'];
+  const approverRoles = userRoles.filter(role => role.startsWith('approver_l') || role === 'admin');
+
+  const relevantApprovalLevels = await ApproverLevel.findAll({
+    where: { approver_role: { [Op.in]: approverRoles } },
+    attributes: ['level'],
+    raw: true,
+  });
+  const levelsUserCanApprove = relevantApprovalLevels.map(al => al.level);
+
+  let pendingCostSheetsWhereClause = {
+    status: { [Op.in]: pendingStatuses },
+    current_approval_level: { [Op.in]: levelsUserCanApprove },
+  };
+
+  if (userRoles.includes('admin')) {
+    pendingCostSheetsWhereClause = {
+      status: { [Op.in]: pendingStatuses },
+    };
+  }
+
+  const pendingApprovals = await CostSheet.findAll({
+    where: pendingCostSheetsWhereClause,
+    include: [
+      { model: User, as: 'initiator', attributes: ['full_name'] },
+      {
+        model: CostSheetPr,
+        as: 'cost_sheet_prs',
+        include: [
+          {
+            model: SapPr,
+          }
+        ]
+      },
+      {
+        model: CostSheetLineItem,
+        as: 'cost_sheet_line_items',
+        include: [
+          {
+            model: SapPrLineItem,
+            attributes: ['description']
+          }
+        ]
+      },
+      {
+        model: Approval,
+        as: 'approvals',
+        where: {
+          status: 'pending',
+          ...(userRoles.includes('admin') ? {} : { level: { [Op.in]: levelsUserCanApprove } }),
+        },
+        required: false
+      }
+    ],
+    order: [['created_at', 'DESC']],
+    limit: 10,
+  });
+
+  const draftCostSheets = await CostSheet.findAll({
+    where: {
+      initiator_id: userId,
+      status: 'draft',
+    },
+    include: [
+      {
+        model: CostSheetPr,
+        as: 'cost_sheet_prs',
+      },
+    ],
+    order: [['updated_at', 'DESC']],
+    limit: 5,
+  });
+
+  const formattedPendingApprovals = pendingApprovals.map((cs) => {
+    const estimatedPrValue = cs.cost_sheet_prs ? cs.cost_sheet_prs.reduce((sum, csp) => {
+      const sapPr = csp.SapPr || csp.sap_pr;
+      return sum + (sapPr ? parseFloat(sapPr.est_value || 0) : 0);
+    }, 0) : 0;
+    const displayValue = parseFloat((cs.final_order_value || 0).toString()) || estimatedPrValue;
+
+    return {
+      id: cs.cost_sheet_number,
+      prNumbers: cs.cost_sheet_prs ? cs.cost_sheet_prs.map(csp => csp.pr_number).join(', ') : '',
+      description: cs.cost_sheet_line_items ? cs.cost_sheet_line_items.map(li => li.SapPrLineItem ? li.SapPrLineItem.description : 'No Description').join(', ') : 'No Description',
+      value: displayValue,
+      submittedDate: cs.updated_at ? new Date(cs.updated_at).toLocaleDateString('en-US') : 'N/A', // Format date consistently
+      type: cs.requirement_type === 'technical' ? 'TECH' : 'COMM',
+      createdBy: cs.initiator ? cs.initiator.full_name : 'Unknown',
+      level: `Level ${cs.current_approval_level}`,
+      priority: 'Medium', // Placeholder for now,
+      daysAgo: Math.floor((new Date().getTime() - new Date(cs.createdAt).getTime()) / (1000 * 60 * 60 * 24)) // Calculate days ago
+    };
+  });
+
+  const formattedDraftCostSheets = draftCostSheets.map((cs) => ({
+    id: cs.id,
+    costSheetNumber: cs.cost_sheet_number,
+    prs: cs.cost_sheet_prs ? cs.cost_sheet_prs.map(csp => csp.pr_number) : [],
+    updatedAt: cs.updated_at ? new Date(cs.updated_at).toLocaleDateString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A',
+    requirementType: cs.requirement_type === 'technical' ? 'Technical' : 'Non-Technical',
+    progress: Math.floor(Math.random() * 100), // Placeholder for progress
+  }));
+
+  return {
+    totalActiveCostSheets: initiatorMetrics.totalActiveCostSheets,
+    recentPRs: initiatorMetrics.recentPRs,
+    pendingApprovals: formattedPendingApprovals,
+    draftCostSheets: formattedDraftCostSheets,
+  };
+};
+
 
 const getAuditLogs = async (filters) => {
   const whereClause = {};
@@ -206,9 +350,10 @@ const getAuditLogs = async (filters) => {
 };
 
 module.exports = {
-    getRecentPRs,
-    getInitiatorDashboardMetrics,
-    getApproverDashboardMetrics,
-    getAdminDashboardMetrics,
-    getAuditLogs
+  getRecentPRs,
+  getInitiatorDashboardMetrics,
+  getApproverDashboardMetrics,
+  getAdminDashboardMetrics,
+  getUnifiedDashboardMetrics,
+  getAuditLogs
 };

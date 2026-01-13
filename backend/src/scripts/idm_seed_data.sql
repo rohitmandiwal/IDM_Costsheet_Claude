@@ -122,26 +122,27 @@ INSERT INTO sap_pr_line_items (pr_number, line_item_number, part_code, descripti
 INSERT INTO cost_sheets (cost_sheet_number, requirement_type, initiator_id, status) VALUES
 ('CS-DRAFT-001', 'technical', (SELECT id FROM users WHERE email = 'ramesh.kumar@example.com'), 'pending');
 INSERT INTO cost_sheet_prs(cost_sheet_id, pr_number) VALUES (1, 'PR00001');
-INSERT INTO cost_sheet_line_items(cost_sheet_id, sap_line_item_id, status) VALUES (1, 1, 'pending');
+INSERT INTO cost_sheet_line_items(cost_sheet_id, sap_line_item_id, status, finalized_vendor_id) VALUES (1, 1, 'pending', NULL);
 
 -- Scenario 2: Submitted & In-Approval
-INSERT INTO cost_sheets (cost_sheet_number, requirement_type, initiator_id, status, final_order_value) VALUES
-('CS-IN-APPROVAL-001', 'non_technical', (SELECT id FROM users WHERE email = 'priya.sharma@example.com'), 'pending', 480000);
+INSERT INTO cost_sheets (cost_sheet_number, requirement_type, initiator_id, status, final_order_value, current_approval_level) VALUES
+('CS-IN-APPROVAL-001', 'non_technical', (SELECT id FROM users WHERE email = 'priya.sharma@example.com'), 'pending', 480000, 2);
 INSERT INTO cost_sheet_prs(cost_sheet_id, pr_number) VALUES (2, 'PR00004');
-INSERT INTO cost_sheet_line_items(cost_sheet_id, sap_line_item_id, status) VALUES (2, 5, 'pending');
+INSERT INTO cost_sheet_line_items(cost_sheet_id, sap_line_item_id, status, finalized_vendor_id) VALUES (2, 5, 'pending', 2);
 -- Quotations for CS-IN-APPROVAL-001
 INSERT INTO vendor_quotations (line_item_id, vendor_id, r0_quoted_per_unit, r1_negotiated_per_unit, total_value, tax_code) VALUES
 (2, 2, 2500, 2400, 480000, 'GST18'), -- L1
 (2, 4, 2600, 2500, 500000, 'GST18');
 -- Approval History
 INSERT INTO approvals (cost_sheet_id, line_item_id, level, approver_id, status, comments) VALUES
-(2, 2, 1, (SELECT id FROM users WHERE email = 'suresh.gupta@example.com'), 'approved', 'Looks good. Forwarding to next level.');
+(2, 2, 1, (SELECT id FROM users WHERE email = 'suresh.gupta@example.com'), 'approved', 'Looks good. Forwarding to next level.'),
+(2, 2, 2, NULL, 'pending', 'Awaiting Level 2 Approval');
 
 -- Scenario 3: Fully Approved
 INSERT INTO cost_sheets (cost_sheet_number, requirement_type, initiator_id, status, final_order_value) VALUES
 ('CS-APPROVED-001', 'technical', (SELECT id FROM users WHERE email = 'ramesh.kumar@example.com'), 'approved', 920000);
 INSERT INTO cost_sheet_prs(cost_sheet_id, pr_number) VALUES (3, 'PR00001');
-INSERT INTO cost_sheet_line_items(cost_sheet_id, sap_line_item_id, status) VALUES (3, 1, 'approved');
+INSERT INTO cost_sheet_line_items(cost_sheet_id, sap_line_item_id, status, finalized_vendor_id) VALUES (3, 1, 'approved', 5);
 -- Quotations
 INSERT INTO vendor_quotations (line_item_id, vendor_id, r0_quoted_per_unit, r1_negotiated_per_unit, total_value, tax_code) VALUES
 (3, 1, 95000, 92000, 920000, 'GST18'), -- L1

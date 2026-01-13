@@ -2,7 +2,7 @@ const { DataTypes, Model } = require('sequelize');
 const { sequelize } = require('../config/database');
 const { approvalStatuses } = require('./costSheetModel');
 
-class CostSheetLineItem extends Model {}
+class CostSheetLineItem extends Model { }
 
 CostSheetLineItem.init(
   {
@@ -34,6 +34,14 @@ CostSheetLineItem.init(
     buyer_remarks: {
       type: DataTypes.TEXT,
       allowNull: true,
+    },
+    finalized_vendor_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'vendors',
+        key: 'id',
+      },
     },
     status: {
       type: 'approval_status', // Use the native PostgreSQL enum type

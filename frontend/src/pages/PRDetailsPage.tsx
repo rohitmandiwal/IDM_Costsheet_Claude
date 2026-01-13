@@ -4,7 +4,7 @@ import { ArrowLeft, Download } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Checkbox } from '../components/ui/Checkbox';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
-import { costSheetService } from '../services/costSheet.service';
+// import { costSheetService } from '../services/costSheet.service'; // Removed unused import
 import type { PRLineItem, PRSummary } from '../types/costSheet.types';
 
 // Helper to generate a unique key for each line item
@@ -13,7 +13,7 @@ const getLineItemKey = (item: PRLineItem) => `${item.prNumber}-${item.lineNumber
 export function PRDetailsPage() {
     const navigate = useNavigate();
     const location = useLocation();
-    
+
     // State restoration logic
     const getInitialState = () => {
         if (location.state) {
@@ -27,32 +27,30 @@ export function PRDetailsPage() {
 
     const [lineItems, setLineItems] = useState<PRLineItem[]>([]);
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-    const [isLoading, setIsLoading] = useState(true);
+    // const [isLoading, setIsLoading] = useState(true); // Removed unused state
 
     useEffect(() => {
-        if (!prSummaries || !costSheetId) {
+        if (!prSummaries || prSummaries.length === 0) {
             navigate('/pr-entry');
             return;
         }
 
-        const fetchLineItems = async () => {
-            try {
-                setIsLoading(true);
-                const fetchedLineItems = await costSheetService.fetchPRLineItems(costSheetId);
-                setLineItems(fetchedLineItems);
-                setSelectedItems(new Set(fetchedLineItems.map(getLineItemKey)));
-            } catch (error) {
-                console.error("Failed to fetch PR line items:", error);
-                // Handle error state appropriately in a real app
-            } finally {
-                setIsLoading(false);
+        // setIsLoading(true);
+        // Extract line items from all PR summaries
+        const allLineItems: PRLineItem[] = [];
+        prSummaries.forEach((pr: PRSummary) => {
+            if (pr.lineItems) {
+                allLineItems.push(...pr.lineItems);
             }
-        };
+        });
 
-        fetchLineItems();
-    }, [prSummaries, costSheetId, navigate]);
-    
-    if (!prSummaries || !costSheetId) {
+        setLineItems(allLineItems);
+        setSelectedItems(new Set(allLineItems.map(getLineItemKey)));
+        // setIsLoading(false);
+
+    }, [prSummaries, navigate]);
+
+    if (!prSummaries) {
         return null; // Render nothing while redirecting
     }
 
@@ -74,7 +72,7 @@ export function PRDetailsPage() {
         }
         setSelectedItems(newSelectedItems);
     };
-    
+
     const handleStartCostSheet = () => {
         const selectedLineItems = lineItems.filter(item => selectedItems.has(getLineItemKey(item)));
         const stateToPass = {
@@ -88,7 +86,7 @@ export function PRDetailsPage() {
             state: stateToPass
         });
     };
-    
+
     // Aggregate data for display
     const allRequesters = [...new Set(prSummaries.map((pr: PRSummary) => pr.requester))].join(', ');
 
@@ -112,16 +110,28 @@ export function PRDetailsPage() {
                     <InfoCard title="PR Numbers" value={prSummaries.map((pr: PRSummary) => pr.prNumber).join(', ')} />
                     <InfoCard title="Primary Requester" value={allRequesters} />
                     <div className="grid grid-cols-2 col-span-1 gap-6">
-                      <InfoCard title="Total Line Items" value={lineItems.length} isNumeric={true} />
-                      <InfoCard title="Selected for Cost Sheet" value={selectedItems.size} isNumeric={true} highlight={true} />
+                        <InfoCard title="Total Line Items" value={lineItems.length} isNumeric={true} />
+                        <InfoCard title="Selected for Cost Sheet" value={selectedItems.size} isNumeric={true} highlight={true} />
                     </div>
+                </div>
+
+                <div className="mb-6 grid grid-cols-1">
+                    <InfoCard
+                        title="Total Estimated Value (Selected)"
+                        value={`₹ ${lineItems
+                            .filter(item => selectedItems.has(getLineItemKey(item)))
+                            .reduce((sum, item) => sum + ((item.prPrice || 0) * item.quantity), 0)
+                            .toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                        isNumeric={true}
+                        highlight={true}
+                    />
                 </div>
 
                 {/* Line Items Table */}
                 <div className="bg-white p-6 rounded-lg border border-gray-200">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-lg font-semibold">PR Line Items (All Selected PRs)</h2>
-                        <Button variant="outline"><Download size={16} className="mr-2"/>Download PR</Button>
+                        <Button variant="outline"><Download size={16} className="mr-2" />Download PR</Button>
                     </div>
 
                     <Table>
@@ -165,9 +175,9 @@ export function PRDetailsPage() {
                 </div>
 
                 <div className="flex justify-end mt-8">
-                    <Button 
-                        size="lg" 
-                        onClick={handleStartCostSheet} 
+                    <Button
+                        size="lg"
+                        onClick={handleStartCostSheet}
                         disabled={selectedItems.size === 0}
                     >
                         Start Cost Sheet ({selectedItems.size} items)

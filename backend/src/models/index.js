@@ -18,6 +18,7 @@ const { Attachment } = require('./attachmentModel');
 const { PoRequest } = require('./poRequestModel');
 const { AuditLog } = require('./auditLogModel');
 const { Notification } = require('./notificationModel');
+const { SapPo } = require('./sapPoModel');
 
 // Define Associations
 
@@ -59,6 +60,10 @@ VendorQuotation.belongsTo(CostSheetLineItem, { foreignKey: 'line_item_id' });
 // CostSheetLineItem and Deviation
 CostSheetLineItem.hasMany(Deviation, { foreignKey: 'line_item_id', as: 'deviations' });
 Deviation.belongsTo(CostSheetLineItem, { foreignKey: 'line_item_id' });
+
+// VendorQuotation and Vendor
+VendorQuotation.belongsTo(Vendor, { foreignKey: 'vendor_id', as: 'vendor' });
+Vendor.hasMany(VendorQuotation, { foreignKey: 'vendor_id', as: 'quotations' });
 
 // Vendor and SapVendor
 Vendor.belongsTo(SapVendor, { foreignKey: 'vendor_code' });
@@ -104,4 +109,5 @@ module.exports = {
   PoRequest,
   AuditLog,
   Notification,
+  SapPo,
 };
