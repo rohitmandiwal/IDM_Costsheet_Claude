@@ -113,8 +113,8 @@ export function AdminSettingsPage() {
     };
 
     return (
-        <div className="bg-gray-50 min-h-screen p-8">
-            <div className="max-w-7xl mx-auto">
+        <div className="w-full">
+            <div className="max-w-full mx-auto">
                 <h1 className="text-2xl font-bold text-gray-800 mb-2">Admin Settings</h1>
                 <p className="text-sm text-gray-500 mb-6">Configure approval workflows and user roles</p>
 
