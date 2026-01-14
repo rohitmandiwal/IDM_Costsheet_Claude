@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronRight, CheckCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import type { PRSummary } from '../types/costSheet.types';
@@ -64,8 +64,8 @@ export function PRSummaryPage() {
           </div>
           <div className="flex-1 h-px bg-gray-300 mx-4"></div>
           <div className="flex items-center gap-4 text-sm">
-            <span className="px-3 py-1.5 rounded-full bg-blue-600 text-white font-semibold">2</span>
-            <span className="font-semibold text-blue-600">Review & Edit</span>
+            <span className="px-3 py-1.5 rounded-full bg-primary text-white font-semibold">2</span>
+            <span className="font-semibold text-primary">Review & Edit</span>
           </div>
         </div>
 
@@ -96,7 +96,7 @@ export function PRSummaryPage() {
   );
 }
 
-function PRSummaryCard({ pr, requirementType }: { pr: PRSummary; requirementType: 'Technical' | 'Commercial' }) {
+function PRSummaryCard({ pr, requirementType }: { pr: PRSummary; requirementType: string }) {
   return (
     <div className="border border-gray-200 rounded-lg p-4 bg-white">
       <div className="flex items-start gap-4">
@@ -105,8 +105,8 @@ function PRSummaryCard({ pr, requirementType }: { pr: PRSummary; requirementType
           <div className="flex items-center gap-3 mb-2">
             <h3 className="font-semibold text-gray-800">PR {pr.prNumber}</h3>
             <Badge variant="outline" className="text-green-600 border-green-300">valid</Badge>
-            <Badge className={requirementType === 'Technical' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}>
-              {requirementType === 'Technical' ? 'TECH' : 'COMM'}
+            <Badge className={requirementType.toLowerCase() === 'technical' ? 'bg-primary text-white' : 'bg-gray-200 text-gray-700'}>
+              {requirementType.toLowerCase() === 'technical' ? 'TECH' : 'COMM'}
             </Badge>
           </div>
           <p className="text-sm text-gray-600 mb-4">{pr.description}</p>

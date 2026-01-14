@@ -66,8 +66,28 @@ export const costSheetService = {
   async selectVendorAndDeviation(lineItemId: number, finalizedVendorId: number, deviationData?: any) {
     const response = await apiClient.put(`/api/cost-sheets/line-items/${lineItemId}/select-vendor-and-deviation`, {
       finalizedVendorId,
-      deviation: deviationData
+      deviationData
     });
+    return response.data.data;
+  },
+
+  async createVendorQuotation(lineItemId: number, quotationData: any) {
+    const response = await apiClient.post(`/api/cost-sheets/${lineItemId}/vendor-quotations`, quotationData);
+    return response.data.data;
+  },
+
+  async updateVendorQuotation(quotationId: number, quotationData: any) {
+    const response = await apiClient.put(`/api/cost-sheets/vendor-quotations/${quotationId}`, quotationData);
+    return response.data.data;
+  },
+
+  async deleteVendorQuotation(quotationId: number) {
+    const response = await apiClient.delete(`/api/cost-sheets/vendor-quotations/${quotationId}`);
+    return response.data;
+  },
+
+  async updateFinalizedDealTerms(lineItemId: number, dealData: any) {
+    const response = await apiClient.put(`/api/cost-sheets/line-items/${lineItemId}/finalized-deal`, dealData);
     return response.data.data;
   }
 };

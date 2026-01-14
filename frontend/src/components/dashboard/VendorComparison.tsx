@@ -1,13 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../ui/Table';
-import { PlusCircle, X } from 'lucide-react';
+import { Plus, Save } from 'lucide-react';
+import { costSheetService } from '../../services/costSheet.service';
+import Swal from 'sweetalert2';
 
 export interface VendorQuote {
     id: number;
+    vendorId?: number;
     vendorName: string;
     vendorCode: string;
+    taxCode?: string;
     originalQuote: number;
     negotiatedQuote: number;
     gstRate: number;
@@ -17,243 +21,268 @@ export interface VendorQuote {
     deliveryTerms?: string;
     exchangeRate?: number;
     quoteValidityDate?: string;
-    vendorId?: number;
+    vendorType?: 'new' | 'existing';
 }
 
 interface VendorComparisonProps {
+    lineItemId: number;
     lineItemQuantity: number;
     vendors: VendorQuote[];
-    setVendors: React.Dispatch<React.SetStateAction<VendorQuote[]>>;
+    onVendorsUpdate: (vendors: VendorQuote[]) => void;
     readOnly?: boolean;
 }
 
-export function VendorComparison({ lineItemQuantity, vendors, setVendors, readOnly = false }: VendorComparisonProps) {
-    const [isModalOpen, setIsModalOpen] = useState(false);
+export function VendorComparison({ lineItemId, lineItemQuantity, vendors: initialVendors, onVendorsUpdate, readOnly = false }: VendorComparisonProps) {
+    const [localVendors, setLocalVendors] = useState<VendorQuote[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
 
-    // Calculate derived values for each vendor
-    const vendorsWithTotals = vendors.map(v => {
-        const negotiatedValue = v.negotiatedQuote * lineItemQuantity;
-        const taxAmount = negotiatedValue * (v.gstRate / 100);
-        const totalValue = negotiatedValue + taxAmount + v.freight + v.otherCharges;
+    useEffect(() => {
+        setLocalVendors(initialVendors);
+    }, [initialVendors]);
+
+    const handleCellChange = (index: number, field: keyof VendorQuote, value: any) => {
+        const updated = [...localVendors];
+        updated[index] = { ...updated[index], [field]: value };
+        setLocalVendors(updated);
+    };
+
+    const calculateTotals = (v: VendorQuote) => {
+        const originalValue = (v.originalQuote || 0) * lineItemQuantity;
+        const negotiatedValue = (v.negotiatedQuote || 0) * lineItemQuantity;
+        const taxAmount = (negotiatedValue * (v.gstRate || 0)) / 100;
+
+        // Final Landed Cost After Original (Simplified as original + estimated tax + freight + other)
+        const grandTotalOriginal = originalValue + (originalValue * (v.gstRate || 0) / 100) + (v.freight || 0) + (v.otherCharges || 0);
+
+        // Final Landed Cost After Negotiation
+        const grandTotalNegotiated = negotiatedValue + taxAmount + (v.freight || 0) + (v.otherCharges || 0);
+
         return {
-            ...v,
+            originalValue,
             negotiatedValue,
             taxAmount,
-            totalValue
+            grandTotalOriginal,
+            grandTotalNegotiated
         };
-    });
+    };
 
-    const lowestTotal = Math.min(...vendorsWithTotals.map(v => v.totalValue).filter(v => v > 0));
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            const promises = localVendors.map(v => {
+                const payload = {
+                    vendor_name: v.vendorName,
+                    vendor_code: v.vendorCode,
+                    tax_code: v.taxCode,
+                    r0_quoted_per_unit: v.originalQuote,
+                    r1_negotiated_per_unit: v.negotiatedQuote,
+                    gst: v.gstRate,
+                    freight: v.freight,
+                    other_charges: v.otherCharges,
+                };
 
-    const handleAddVendor = (newVendor: VendorQuote) => {
-        setVendors(prev => [...prev, { ...newVendor, id: prev.length + 1 }]);
-        setIsModalOpen(false);
-    }
+                if (v.id && !v.id.toString().startsWith('temp')) {
+                    return costSheetService.updateVendorQuotation(v.id, payload);
+                } else {
+                    return costSheetService.createVendorQuotation(lineItemId, {
+                        ...payload,
+                        vendor_id: v.vendorId || 1 // Fallback or handle selection
+                    });
+                }
+            });
+
+            await Promise.all(promises);
+            Swal.fire({
+                title: 'Saved!',
+                text: 'Vendor comparison data has been updated.',
+                icon: 'success',
+                timer: 1500,
+                showConfirmButton: false
+            });
+            onVendorsUpdate(localVendors);
+        } catch (error) {
+            console.error('Failed to save vendor comparison:', error);
+            Swal.fire('Error', 'Failed to save vendor comparison data.', 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const addVendorRow = () => {
+        const newVendor: VendorQuote = {
+            id: Date.now(), // Temp ID
+            vendorName: '',
+            vendorCode: '',
+            originalQuote: 0,
+            negotiatedQuote: 0,
+            gstRate: 18,
+            freight: 0,
+            otherCharges: 0,
+            vendorType: 'new'
+        };
+        setLocalVendors([...localVendors, newVendor]);
+    };
+
+    const lowestNegotiatedTotal = Math.min(...localVendors.map(v => calculateTotals(v).grandTotalNegotiated).filter(t => t > 0));
 
     return (
         <div className="bg-white p-6 rounded-lg border border-gray-200">
             <div className="flex justify-between items-center mb-4">
                 <div>
-                    <h3 className="font-semibold text-gray-800">Vendor Comparison</h3>
-                    <p className="text-xs text-gray-500">Best price (L1) highlighted in green.</p>
+                    <h3 className="font-semibold text-gray-800 text-lg">Vendor Comparison</h3>
+                    <p className="text-xs text-gray-500">Best price highlighted in green • Scroll horizontally for all fields</p>
                 </div>
                 {!readOnly && (
-                    <Button variant="outline" onClick={() => setIsModalOpen(true)}>
-                        <PlusCircle size={16} className="mr-2" />Add Vendor
+                    <Button variant="outline" size="sm" onClick={addVendorRow} className="text-primary border-gray-200 hover:bg-gray-50">
+                        <Plus size={16} className="mr-1" /> Add Vendor
                     </Button>
                 )}
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto border rounded-lg">
                 <Table>
-                    <TableHeader>
+                    <TableHeader className="bg-gray-50">
                         <TableRow>
-                            <TableHead className="w-48 bg-gray-50">Parameters</TableHead>
-                            {vendorsWithTotals.map(vendor => (
-                                <TableHead key={vendor.id} className={`text-center min-w-[150px] ${vendor.totalValue === lowestTotal ? 'bg-green-50 border-t-2 border-green-500' : ''}`}>
-                                    <div className="font-bold text-gray-800">{vendor.vendorName}</div>
-                                    <div className="text-xs font-normal text-gray-500">{vendor.vendorCode}</div>
-                                    {vendor.totalValue === lowestTotal && <div className="text-xs font-bold text-green-600 mt-1">L1 Vendor</div>}
-                                </TableHead>
-                            ))}
+                            <TableHead className="min-w-[120px]">Vendor</TableHead>
+                            <TableHead className="min-w-[180px]">Vendor Name</TableHead>
+                            <TableHead className="min-w-[120px]">Vendor Code</TableHead>
+                            <TableHead className="min-w-[120px]">Tax Code</TableHead>
+                            <TableHead className="min-w-[150px]">Original Quote Per Unit</TableHead>
+                            <TableHead className="min-w-[120px]">Value</TableHead>
+                            <TableHead className="min-w-[180px]">After Negotiation Per Unit Price</TableHead>
+                            <TableHead className="min-w-[150px]">After Negotiation Value</TableHead>
+                            <TableHead className="min-w-[100px]">GST %</TableHead>
+                            <TableHead className="min-w-[120px]">Tax Amount</TableHead>
+                            <TableHead className="min-w-[120px]">Freight</TableHead>
+                            <TableHead className="min-w-[120px]">Other Charges</TableHead>
+                            <TableHead className="min-w-[150px] bg-orange-50 font-bold">Grand Total After Original</TableHead>
+                            <TableHead className="min-w-[150px] bg-blue-50 font-bold">Grand Total After Negotiation</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        <TableRow>
-                            <TableCell className="font-medium bg-gray-50">Original Quote (Unit)</TableCell>
-                            {vendorsWithTotals.map(vendor => (
-                                <TableCell key={vendor.id} className="text-center text-gray-500">₹{vendor.originalQuote.toLocaleString()}</TableCell>
-                            ))}
-                        </TableRow>
-                        <TableRow>
-                            <TableCell className="font-medium bg-gray-50">Negotiated Quote (Unit)</TableCell>
-                            {vendorsWithTotals.map(vendor => (
-                                <TableCell key={vendor.id} className="text-center font-semibold">₹{vendor.negotiatedQuote.toLocaleString()}</TableCell>
-                            ))}
-                        </TableRow>
-                        <TableRow>
-                            <TableCell className="font-medium bg-gray-50">Value (Qty: {lineItemQuantity})</TableCell>
-                            {vendorsWithTotals.map(vendor => (
-                                <TableCell key={vendor.id} className="text-center text-gray-600">₹{vendor.negotiatedValue.toLocaleString()}</TableCell>
-                            ))}
-                        </TableRow>
-                        <TableRow>
-                            <TableCell className="font-medium bg-gray-50">GST (%)</TableCell>
-                            {vendorsWithTotals.map(vendor => (
-                                <TableCell key={vendor.id} className="text-center">{vendor.gstRate}%</TableCell>
-                            ))}
-                        </TableRow>
-                        <TableRow>
-                            <TableCell className="font-medium bg-gray-50">Tax Amount</TableCell>
-                            {vendorsWithTotals.map(vendor => (
-                                <TableCell key={vendor.id} className="text-center text-gray-600">₹{vendor.taxAmount.toLocaleString()}</TableCell>
-                            ))}
-                        </TableRow>
-                        <TableRow>
-                            <TableCell className="font-medium bg-gray-50">Freight</TableCell>
-                            {vendorsWithTotals.map(vendor => (
-                                <TableCell key={vendor.id} className="text-center text-gray-600">₹{vendor.freight.toLocaleString()}</TableCell>
-                            ))}
-                        </TableRow>
-                        <TableRow>
-                            <TableCell className="font-medium bg-gray-50">Other Charges</TableCell>
-                            {vendorsWithTotals.map(vendor => (
-                                <TableCell key={vendor.id} className="text-center text-gray-600">₹{vendor.otherCharges.toLocaleString()}</TableCell>
-                            ))}
-                        </TableRow>
-                        <TableRow className="bg-gray-100 border-t-2 border-gray-300">
-                            <TableCell className="font-bold">Total Landed Cost</TableCell>
-                            {vendorsWithTotals.map(vendor => (
-                                <TableCell key={vendor.id} className={`text-center font-bold text-lg ${vendor.totalValue === lowestTotal ? 'text-green-700' : 'text-gray-800'}`}>
-                                    ₹{vendor.totalValue.toLocaleString()}
-                                </TableCell>
-                            ))}
-                        </TableRow>
+                        {localVendors.map((vendor, index) => {
+                            const totals = calculateTotals(vendor);
+                            const isL1 = totals.grandTotalNegotiated === lowestNegotiatedTotal && totals.grandTotalNegotiated > 0;
+
+                            return (
+                                <TableRow key={vendor.id} className={isL1 ? 'bg-green-50/50' : ''}>
+                                    <TableCell className="font-semibold text-gray-700">Vendor {index + 1}</TableCell>
+                                    <TableCell>
+                                        <Input
+                                            value={vendor.vendorName}
+                                            onChange={e => handleCellChange(index, 'vendorName', e.target.value)}
+                                            readOnly={readOnly}
+                                            className="h-9"
+                                        />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Input
+                                            value={vendor.vendorCode}
+                                            onChange={e => handleCellChange(index, 'vendorCode', e.target.value)}
+                                            readOnly={readOnly}
+                                            className="h-9"
+                                        />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Input
+                                            value={vendor.taxCode}
+                                            placeholder="Tax"
+                                            onChange={e => handleCellChange(index, 'taxCode', e.target.value)}
+                                            readOnly={readOnly}
+                                            className="h-9"
+                                        />
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="relative">
+                                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">₹</span>
+                                            <Input
+                                                type="number"
+                                                value={vendor.originalQuote}
+                                                onChange={e => handleCellChange(index, 'originalQuote', parseFloat(e.target.value) || 0)}
+                                                readOnly={readOnly}
+                                                className="h-9 pl-6"
+                                            />
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-gray-600 font-medium">₹{totals.originalValue.toLocaleString()}</TableCell>
+                                    <TableCell>
+                                        <div className="relative">
+                                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">₹</span>
+                                            <Input
+                                                type="number"
+                                                value={vendor.negotiatedQuote}
+                                                onChange={e => handleCellChange(index, 'negotiatedQuote', parseFloat(e.target.value) || 0)}
+                                                readOnly={readOnly}
+                                                className="h-9 pl-6 bg-white font-semibold"
+                                            />
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-gray-600 font-medium">₹{totals.negotiatedValue.toLocaleString()}</TableCell>
+                                    <TableCell>
+                                        <div className="relative">
+                                            <Input
+                                                type="number"
+                                                value={vendor.gstRate}
+                                                onChange={e => handleCellChange(index, 'gstRate', parseFloat(e.target.value) || 0)}
+                                                readOnly={readOnly}
+                                                className="h-9 pr-6"
+                                            />
+                                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400">%</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-gray-600">₹{totals.taxAmount.toLocaleString()}</TableCell>
+                                    <TableCell>
+                                        <div className="relative">
+                                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">₹</span>
+                                            <Input
+                                                type="number"
+                                                value={vendor.freight}
+                                                onChange={e => handleCellChange(index, 'freight', parseFloat(e.target.value) || 0)}
+                                                readOnly={readOnly}
+                                                className="h-9 pl-6"
+                                            />
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="relative">
+                                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">₹</span>
+                                            <Input
+                                                type="number"
+                                                value={vendor.otherCharges}
+                                                onChange={e => handleCellChange(index, 'otherCharges', parseFloat(e.target.value) || 0)}
+                                                readOnly={readOnly}
+                                                className="h-9 pl-6"
+                                            />
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="bg-orange-50/50 font-bold text-gray-800">
+                                        ₹{totals.grandTotalOriginal.toLocaleString() || '0'}
+                                    </TableCell>
+                                    <TableCell className={`bg-gray-50/50 font-bold text-lg ${isL1 ? 'text-green-700' : 'text-primary'}`}>
+                                        ₹{totals.grandTotalNegotiated.toLocaleString() || '0'}
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
                     </TableBody>
                 </Table>
             </div>
 
-            {isModalOpen && <AddVendorModal onAdd={handleAddVendor} onClose={() => setIsModalOpen(false)} />}
+            {!readOnly && (
+                <div className="mt-4 flex justify-end">
+                    <Button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="bg-primary hover:bg-primary/90 h-10 px-6"
+                    >
+                        {isSaving ? 'Saving...' : (
+                            <>
+                                <Save size={18} className="mr-2" /> Save Vendor Comparison
+                            </>
+                        )}
+                    </Button>
+                </div>
+            )}
         </div>
     );
-}
-
-function AddVendorModal({ onClose, onAdd }: { onClose: () => void, onAdd: (vendor: VendorQuote) => void }) {
-    const [formData, setFormData] = useState<Partial<VendorQuote>>({
-        vendorName: '',
-        vendorCode: '',
-        originalQuote: 0,
-        negotiatedQuote: 0,
-        gstRate: 18,
-        freight: 0,
-        otherCharges: 0
-    });
-
-    const handleChange = (field: keyof VendorQuote, value: string | number) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
-    };
-
-    const handleSubmit = () => {
-        if (formData.vendorName && formData.negotiatedQuote !== undefined) {
-            // Basic validation
-            const newVendor = {
-                ...formData,
-                id: 0, // Assigned by parent
-                vendorCode: formData.vendorCode || 'NEW-V',
-                originalQuote: Number(formData.originalQuote) || 0,
-                negotiatedQuote: Number(formData.negotiatedQuote) || 0,
-                gstRate: Number(formData.gstRate) || 0,
-                freight: Number(formData.freight) || 0,
-                otherCharges: Number(formData.otherCharges) || 0,
-            } as VendorQuote;
-            onAdd(newVendor);
-        }
-    }
-
-    return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold text-gray-800">Add New Vendor Quote</h2>
-                    <Button variant="ghost" size="icon" onClick={onClose}><X size={20} /></Button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-6">
-                    <div className="col-span-2 md:col-span-1">
-                        <label className="text-sm font-medium text-gray-700 block mb-1">Vendor Name *</label>
-                        <Input
-                            placeholder="Enter vendor name..."
-                            value={formData.vendorName}
-                            onChange={e => handleChange('vendorName', e.target.value)}
-                        />
-                    </div>
-                    <div className="col-span-2 md:col-span-1">
-                        <label className="text-sm font-medium text-gray-700 block mb-1">Vendor Code</label>
-                        <Input
-                            placeholder="Optional code"
-                            value={formData.vendorCode}
-                            onChange={e => handleChange('vendorCode', e.target.value)}
-                        />
-                    </div>
-
-                    <div className="bg-blue-50 p-4 rounded-md col-span-2 grid grid-cols-2 gap-4">
-                        <h4 className="col-span-2 font-semibold text-blue-800 text-sm">Pricing Details</h4>
-                        <div>
-                            <label className="text-xs font-bold text-gray-600 uppercase block mb-1">Original Quote (Unit Price)</label>
-                            <Input
-                                type="number"
-                                placeholder="0.00"
-                                value={formData.originalQuote}
-                                onChange={e => handleChange('originalQuote', e.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs font-bold text-gray-600 uppercase block mb-1">Negotiated Quote (Unit Price) *</label>
-                            <Input
-                                type="number"
-                                placeholder="0.00"
-                                value={formData.negotiatedQuote}
-                                onChange={e => handleChange('negotiatedQuote', e.target.value)}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4 col-span-2">
-                        <div>
-                            <label className="text-sm font-medium text-gray-700 block mb-1">GST Rate (%)</label>
-                            <Input
-                                type="number"
-                                placeholder="18"
-                                value={formData.gstRate}
-                                onChange={e => handleChange('gstRate', e.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <label className="text-sm font-medium text-gray-700 block mb-1">Freight</label>
-                            <Input
-                                type="number"
-                                placeholder="0.00"
-                                value={formData.freight}
-                                onChange={e => handleChange('freight', e.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <label className="text-sm font-medium text-gray-700 block mb-1">Other Charges</label>
-                            <Input
-                                type="number"
-                                placeholder="0.00"
-                                value={formData.otherCharges}
-                                onChange={e => handleChange('otherCharges', e.target.value)}
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex justify-end gap-3 mt-8 pt-4 border-t">
-                    <Button variant="outline" onClick={onClose}>Cancel</Button>
-                    <Button onClick={handleSubmit}>Add Vendor Quote</Button>
-                </div>
-            </div>
-        </div>
-    )
 }

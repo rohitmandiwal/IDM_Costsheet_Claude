@@ -43,15 +43,15 @@ export function Dashboard() {
     navigate('/pr-entry');
   };
 
-  const handleViewDetails = async (prNumber: string, requirementType: 'Technical' | 'Non-Technical') => {
+  const handleViewDetails = async (prNumber: string, requirementType: string) => {
     try {
       setIsActionLoading(true);
-      const reqType = requirementType === 'Technical' ? 'technical' : 'non_technical';
+      const reqType = requirementType.toLowerCase().includes('non') || requirementType.toLowerCase().includes('comm') ? 'non_technical' : 'technical';
       const result = await costSheetService.fetchPRs(reqType, [prNumber]);
       const newState = {
         prSummaries: result.prSummaries,
         costSheetId: result.costSheetId,
-        requirementType: requirementType
+        requirementType: reqType
       };
       sessionStorage.setItem('prSummaryState', JSON.stringify(newState));
       navigate('/pr-summary', { state: newState });
@@ -66,8 +66,9 @@ export function Dashboard() {
     navigate('/approver-page', { state: { costSheetId: id, requirementType } });
   };
 
-  const handleContinueDraft = (costSheetNumber: string, requirementType: 'Technical' | 'Non-Technical') => {
-    navigate('/cost-sheet-editor', { state: { costSheetNumber, requirementType } });
+  const handleContinueDraft = (costSheetNumber: string, requirementType: string) => {
+    const reqType = requirementType.toLowerCase().includes('non') || requirementType.toLowerCase().includes('comm') ? 'non_technical' : 'technical';
+    navigate('/cost-sheet-editor', { state: { costSheetNumber, requirementType: reqType } });
   };
 
   const filteredPendingApprovals = dashboardData?.pendingApprovals.filter(approval =>
@@ -106,7 +107,7 @@ export function Dashboard() {
       {isActionLoading && (
         <div className="fixed inset-0 bg-white/50 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-xl shadow-xl border border-gray-100 flex flex-col items-center">
-            <Loader2 className="w-10 h-10 text-[#0B61FF] animate-spin mb-4" />
+            <Loader2 className="w-10 h-10 text-primary animate-spin mb-4" />
             <p className="text-gray-900 font-medium">Fetching PR Details...</p>
           </div>
         </div>
@@ -133,13 +134,13 @@ export function Dashboard() {
           </div>
         </Card>
 
-        <Card className="col-span-4 p-6 bg-gradient-to-br from-[#0B61FF] to-[#0847B8] text-white">
+        <Card className="col-span-4 p-6 bg-[#030213] text-white">
           <div className="text-white/80 mb-2">Total Active Cost Sheets</div>
-          <div className="text-3xl mb-4">{dashboardData.totalActiveCostSheets}</div>
+          <div className="text-3xl font-bold mb-4">{dashboardData.totalActiveCostSheets}</div>
           <Button
             variant="secondary"
             onClick={handleCreateNewCostSheet}
-            className="w-full"
+            className="w-full bg-white/10 hover:bg-white/20 text-white border-none"
           >
             Create New Cost Sheet
           </Button>
@@ -153,8 +154,8 @@ export function Dashboard() {
             <button
               onClick={() => setRequirementFilter('All')}
               className={`px-4 py-2 rounded-full text-sm transition-colors ${requirementFilter === 'All'
-                  ? 'bg-[#0B61FF] text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
             >
               All
@@ -162,8 +163,8 @@ export function Dashboard() {
             <button
               onClick={() => setRequirementFilter('Technical')}
               className={`px-4 py-2 rounded-full text-sm transition-colors ${requirementFilter === 'Technical'
-                  ? 'bg-[#0B61FF] text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
             >
               Technical
@@ -171,8 +172,8 @@ export function Dashboard() {
             <button
               onClick={() => setRequirementFilter('Non-Technical')}
               className={`px-4 py-2 rounded-full text-sm transition-colors ${requirementFilter === 'Non-Technical'
-                  ? 'bg-[#0B61FF] text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
             >
               Non-Technical
@@ -213,10 +214,10 @@ export function Dashboard() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge className={approval.type === 'TECH' ? 'bg-[#0B61FF] text-white' : 'bg-gray-500 text-white'}>
+                        <Badge className={approval.type === 'TECH' ? 'bg-primary text-white' : 'bg-gray-700 text-white'}>
                           {approval.type}
                         </Badge>
-                        <Badge className="bg-[#FEF3C7] text-[#F39C12] border-[#F39C12]/20">
+                        <Badge className="bg-amber-50 text-amber-700 border-amber-200">
                           {approval.level}
                         </Badge>
                       </div>
@@ -269,7 +270,7 @@ export function Dashboard() {
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-gray-900">{draft.costSheetNumber}</span>
-                          <Badge className={draft.requirementType === 'Technical' ? 'bg-[#0B61FF] text-white' : 'bg-gray-500 text-white'}>
+                          <Badge className={draft.requirementType === 'Technical' ? 'bg-primary text-white' : 'bg-gray-700 text-white'}>
                             {draft.requirementType.toUpperCase()}
                           </Badge>
                         </div>
@@ -331,7 +332,7 @@ export function Dashboard() {
                         <td className="py-3 px-4 text-gray-700">{pr.lineItems}</td>
                         <td className="py-3 px-4 text-gray-700">{pr.plant}</td>
                         <td className="py-3 px-4">
-                          <Badge className={pr.type === 'Technical' ? 'bg-[#0B61FF] text-white' : 'bg-gray-500 text-white'}>
+                          <Badge className={pr.type === 'Technical' ? 'bg-primary text-white' : 'bg-gray-700 text-white'}>
                             {pr.type === 'Technical' ? 'TECH' : 'COMM'}
                           </Badge>
                         </td>

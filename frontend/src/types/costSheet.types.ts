@@ -11,6 +11,7 @@ export interface PRLineItem {
   plant: string;
   prPrice?: number;
   lastYearPrice?: number;
+  status?: string;
 }
 
 export interface PRSummary {

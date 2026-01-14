@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge';
 import { Textarea } from '../components/ui/Textarea';
 import { costSheetService } from '../services/costSheet.service';
+import { dashboardService } from '../services/dashboard.service';
 import Swal from 'sweetalert2';
+import { History, TrendingUp, AlertCircle, Clock as ClockIcon } from 'lucide-react';
 
 export function ApproverPage() {
     const { costSheetId } = useParams<{ costSheetId: string }>();
@@ -17,6 +19,7 @@ export function ApproverPage() {
     const [error, setError] = useState<string | null>(null);
     const [comments, setComments] = useState('');
     const [actionLoading, setActionLoading] = useState(false);
+    const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
     useEffect(() => {
         const fetchCostSheet = async () => {
@@ -25,7 +28,12 @@ export function ApproverPage() {
                 setLoading(true);
                 const data = await costSheetService.getCostSheetById(costSheetId);
                 setCostSheet(data);
-                // Note: Real audit trail/timeline would require separate fetch or expanded API
+
+                // Fetch audit logs as well using the numeric ID from the data
+                if (data && data.id) {
+                    const logs = await dashboardService.getAuditLogs({ costSheetId: data.id });
+                    setAuditLogs(logs);
+                }
             } catch (err) {
                 console.error(err);
                 setError('Failed to load cost sheet details');
@@ -112,22 +120,107 @@ export function ApproverPage() {
                                 </div>
 
                                 {activeTab === 'summary' && (
-                                    <div className="space-y-4">
-                                        <h3 className="font-semibold">Line Items</h3>
-                                        {costSheet.cost_sheet_line_items?.map((item: any) => (
-                                            <div key={item.id} className="p-3 border rounded bg-gray-50">
-                                                <p className="font-medium">{item.id} - {item.finalized_vendor_id ? 'Vendor Selected' : 'Pending Selection'}</p>
-                                                {/* Add more details here as needed */}
+                                    <div className="space-y-6">
+                                        <div>
+                                            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                                                <TrendingUp size={18} className="text-blue-500" /> Approval Chain Progression
+                                            </h3>
+                                            <div className="flex flex-col space-y-3 relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-gray-100">
+                                                {(costSheet.approval_chain || []).map((step: any, idx: number) => (
+                                                    <div key={idx} className="flex items-start gap-4 relative z-10">
+                                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${step.status === 'approved' ? 'bg-green-500 text-white' :
+                                                            step.status === 'rejected' ? 'bg-red-500 text-white' :
+                                                                step.status === 'sent_back' ? 'bg-amber-500 text-white' :
+                                                                    (costSheet.current_approval_level === step.level) ? 'bg-blue-500 text-white animate-pulse' :
+                                                                        'bg-gray-200 text-gray-500'
+                                                            }`}>
+                                                            {step.status === 'approved' ? <Check size={12} /> : step.level}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <div className="flex justify-between">
+                                                                <p className="text-sm font-semibold text-gray-800">{step.role.replace('approver_', '').replace('_', ' ').toUpperCase()}</p>
+                                                                <Badge variant="outline" className={
+                                                                    step.status === 'approved' ? 'text-green-600 border-green-200 bg-green-50' :
+                                                                        step.status === 'pending' ? 'text-gray-400 border-gray-100' :
+                                                                            'text-amber-600 border-amber-200 bg-amber-50'
+                                                                }>
+                                                                    {step.status.toUpperCase()}
+                                                                </Badge>
+                                                            </div>
+                                                            {step.approver_name && <p className="text-xs text-gray-500">By: {step.approver_name}</p>}
+                                                            {step.comments && <p className="text-xs text-gray-500 italic mt-1 bg-gray-50 p-1.5 rounded">"{step.comments}"</p>}
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        ))}
-                                        <p className="text-gray-500 text-sm mt-4">
-                                            Full timeline view requires integration with audit logs API.
-                                        </p>
+                                        </div>
+
+                                        <div className="pt-4 border-t border-gray-100">
+                                            <h3 className="font-semibold text-gray-800 mb-4">Line Items Summary</h3>
+                                            <div className="space-y-3">
+                                                {costSheet.cost_sheet_line_items?.map((item: any) => (
+                                                    <div key={item.id} className="p-4 border border-gray-100 rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow">
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-bold text-gray-400">#{(item.SapPrLineItem?.line_item_number || item.line_item_number)}</span>
+                                                                <span className="font-medium text-gray-800">{item.SapPrLineItem?.description || item.description}</span>
+                                                            </div>
+                                                            <Badge variant="secondary" className="bg-blue-50 text-blue-700">QTY: {item.SapPrLineItem?.qty || item.quantity}</Badge>
+                                                        </div>
+                                                        <div className="flex items-center justify-between text-xs text-gray-500">
+                                                            <span>Part Code: <span className="text-gray-700 font-medium">{item.SapPrLineItem?.part_code || item.part_code || 'N/A'}</span></span>
+                                                            <div className="flex items-center gap-2">
+                                                                <Badge variant="outline" className={item.finalized_deal ? 'text-green-600 border-green-200 bg-green-50' : 'text-amber-600 border-amber-200'}>
+                                                                    {item.finalized_deal ? 'VENDOR FINALIZED' : 'PENDING SELECTION'}
+                                                                </Badge>
+                                                                {item.finalized_deal && (
+                                                                    <span className="font-bold text-gray-900">₹{(Number(item.finalized_deal.final_total_value) || 0).toLocaleString()}</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                                 {activeTab === 'audit' && (
-                                    <div className="text-center py-8 text-gray-500">
-                                        Audit trail integration pending.
+                                    <div className="space-y-4">
+                                        <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                                            <History size={18} className="text-blue-500" /> Activity Timeline
+                                        </h3>
+                                        <div className="relative before:absolute before:left-4 before:top-4 before:bottom-4 before:w-0.5 before:bg-gray-100">
+                                            {auditLogs.length > 0 ? auditLogs.map((log: any, idx: number) => (
+                                                <div key={idx} className="relative pl-10 pb-6">
+                                                    <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-white border-2 border-primary flex items-center justify-center z-10">
+                                                        <ClockIcon size={14} className="text-primary" />
+                                                    </div>
+                                                    <div className="bg-white p-3 border border-gray-100 rounded-lg shadow-sm">
+                                                        <div className="flex justify-between items-start mb-1">
+                                                            <p className="text-sm font-bold text-gray-800">{log.activity_type.replace(/_/g, ' ')}</p>
+                                                            <span className="text-[10px] text-gray-400">{new Date(log.created_at).toLocaleString()}</span>
+                                                        </div>
+                                                        <p className="text-xs text-gray-600 mb-2">{log.description}</p>
+                                                        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-50">
+                                                            <div className="w-5 h-5 bg-gray-200 rounded-full flex items-center justify-center text-[8px] font-bold text-gray-600">
+                                                                {log.User?.full_name?.charAt(0)}
+                                                            </div>
+                                                            <span className="text-[10px] font-medium text-gray-500">{log.User?.full_name}</span>
+                                                        </div>
+                                                        {log.comments && (
+                                                            <p className="mt-2 p-2 bg-amber-50 border-l-2 border-amber-300 text-[11px] text-amber-800 italic rounded-r italic">
+                                                                "{log.comments}"
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )) : (
+                                                <div className="text-center py-10 text-gray-400">
+                                                    <AlertCircle size={32} className="mx-auto mb-2 opacity-20" />
+                                                    <p>No audit activity found for this cost sheet.</p>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
 

@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
+import { useMemo } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
-import { Label } from '../ui/Label';
-import { Textarea } from '../ui/Textarea';
-import { AlertTriangle } from 'lucide-react';
+import { Input } from '../ui/Input';
+import { Button } from '../ui/Button';
+import { Plus } from 'lucide-react';
 import type { VendorQuote } from './VendorComparison';
+import Swal from 'sweetalert2';
 
 interface VendorSelectionProps {
     vendors: VendorQuote[];
@@ -12,161 +12,159 @@ interface VendorSelectionProps {
     selectedVendorId: string;
     onVendorSelect: (id: string) => void;
     readOnly?: boolean;
-    existingDeviation?: {
-        deviation_type: string;
-        remarks: string;
-    } | null;
 }
 
-function InfoItem({ label, value }: { label: string; value: string | number }) {
-    return (
-        <div>
-            <p className="text-xs text-gray-500">{label}</p>
-            <p className="font-medium text-gray-800">{value}</p>
-        </div>
-    );
-}
-
-export function VendorSelection({ vendors, lineItemQuantity, selectedVendorId, onVendorSelect, readOnly = false, existingDeviation = null }: VendorSelectionProps) {
-    const [justification, setJustification] = useState(existingDeviation?.remarks || '');
-
-    // Calculate totals to find L1
-    const vendorsWithTotals = useMemo(() => {
-        return vendors.map(v => {
-            const negotiatedValue = v.negotiatedQuote * lineItemQuantity;
-            const taxAmount = negotiatedValue * (v.gstRate / 100);
-            const totalValue = negotiatedValue + taxAmount + v.freight + v.otherCharges;
-            return { ...v, totalValue };
-        });
-    }, [vendors, lineItemQuantity]);
-
-    const l1Vendor = useMemo(() => {
-        if (vendorsWithTotals.length === 0) return null;
-        return vendorsWithTotals.reduce((prev, current) => (prev.totalValue < current.totalValue ? prev : current));
-    }, [vendorsWithTotals]);
-
+export function VendorSelection({ vendors, lineItemQuantity, selectedVendorId, onVendorSelect, readOnly = false }: VendorSelectionProps) {
     const selectedVendor = useMemo(() => {
         if (!selectedVendorId) return null;
-        return vendorsWithTotals.find(v => v.id.toString() === selectedVendorId) || null;
-    }, [selectedVendorId, vendorsWithTotals]);
+        return vendors.find(v => v.id.toString() === selectedVendorId) || null;
+    }, [selectedVendorId, vendors]);
 
-    const isL1Selected = selectedVendor && l1Vendor && selectedVendor.id === l1Vendor.id;
-    const isDeviation = selectedVendor && !isL1Selected;
+    const pricing = useMemo(() => {
+        if (!selectedVendor) return { before: 0, after: 0 };
 
-    const pricingBreakdown = useMemo(() => {
-        if (!selectedVendor) return null;
-        const negotiatedValue = selectedVendor.negotiatedQuote * lineItemQuantity;
-        const gstAmount = negotiatedValue * (selectedVendor.gstRate / 100);
+        const beforeUnit = selectedVendor.originalQuote || 0;
+        const afterUnit = selectedVendor.negotiatedQuote || 0;
+
+        const beforeTotal = beforeUnit * lineItemQuantity;
+        const afterTotal = afterUnit * lineItemQuantity;
+
+        // Landed costs
+        const taxBefore = beforeTotal * (selectedVendor.gstRate / 100);
+        const taxAfter = afterTotal * (selectedVendor.gstRate / 100);
 
         return {
-            negotiatedValue,
-            gstAmount,
-            totalValue: selectedVendor.totalValue,
+            before: beforeTotal + taxBefore + (selectedVendor.freight || 0) + (selectedVendor.otherCharges || 0),
+            after: afterTotal + taxAfter + (selectedVendor.freight || 0) + (selectedVendor.otherCharges || 0)
         };
     }, [selectedVendor, lineItemQuantity]);
 
     return (
-        <div className="space-y-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Vendor Selection</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="vendor-select">Select Preferred Vendor</Label>
-                            <Select value={selectedVendorId} onValueChange={onVendorSelect} disabled={readOnly}>
-                                <SelectTrigger id="vendor-select">
-                                    <SelectValue placeholder="Choose a vendor..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {vendorsWithTotals.map((vendor) => (
-                                        <SelectItem key={vendor.id} value={vendor.id.toString()}>
-                                            {vendor.vendorName} ({vendor.vendorCode})
-                                            {l1Vendor && vendor.id === l1Vendor.id ? ' - L1 Vendor' : ''}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+        <div className="bg-white p-6 rounded-lg border border-gray-200">
+            <h3 className="font-semibold text-gray-800 text-lg mb-6">Vendor Selection & Finalization</h3>
 
-                        {selectedVendor && pricingBreakdown && (
-                            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                                <h4 className="font-medium text-gray-800 mb-3">Pricing Breakdown</h4>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <InfoItem
-                                        label="Unit Price (Negotiated)"
-                                        value={`₹${selectedVendor.negotiatedQuote.toLocaleString()}`}
-                                    />
-                                    <InfoItem
-                                        label="Quantity"
-                                        value={lineItemQuantity}
-                                    />
-                                    <InfoItem
-                                        label="Base Value"
-                                        value={`₹${pricingBreakdown.negotiatedValue.toLocaleString()}`}
-                                    />
-                                    <InfoItem
-                                        label={`GST (${selectedVendor.gstRate}%)`}
-                                        value={`₹${pricingBreakdown.gstAmount.toLocaleString()}`}
-                                    />
-                                    <InfoItem
-                                        label="Freight"
-                                        value={`₹${selectedVendor.freight.toLocaleString()}`}
-                                    />
-                                    <InfoItem
-                                        label="Other Charges"
-                                        value={`₹${selectedVendor.otherCharges.toLocaleString()}`}
-                                    />
-                                    <div className="col-span-2">
-                                        <InfoItem
-                                            label="Total Value"
-                                            value={`₹${pricingBreakdown.totalValue.toLocaleString()}`}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+                <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-gray-700">Select Finalized Vendor</label>
+                    <Select value={selectedVendorId} onValueChange={onVendorSelect} disabled={readOnly}>
+                        <SelectTrigger className="h-10 bg-gray-50/50">
+                            <SelectValue placeholder="Choose vendor..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {vendors.map((v, idx) => (
+                                <SelectItem key={v.id} value={v.id.toString()}>
+                                    {v.vendorName || `Vendor ${idx + 1} `} ({v.vendorCode || 'N/A'})
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
 
-                        {!selectedVendorId && (
-                            <p className="text-sm text-gray-500">
-                                Select a vendor from the comparison table above to view pricing details.
-                            </p>
-                        )}
+                <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-gray-700">Final Price Before Negotiation</label>
+                    <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">₹</span>
+                        <Input
+                            value={pricing.before.toLocaleString()}
+                            readOnly
+                            className="h-10 pl-7 bg-gray-50/50 border-gray-200 font-semibold"
+                        />
                     </div>
-                </CardContent>
-            </Card>
+                </div>
 
-            {isDeviation && (
-                <Card className="border-amber-200 bg-amber-50">
-                    <CardHeader>
-                        <div className="flex items-center gap-2 text-amber-800">
-                            <AlertTriangle size={20} />
-                            <CardTitle className="text-lg">Deviation Analysis Required</CardTitle>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-4">
-                            <p className="text-sm text-amber-800">
-                                You have selected <strong>{selectedVendor?.vendorName}</strong>, which is not the L1 vendor (<strong>{l1Vendor?.vendorName}</strong>).
-                                The price difference is Approximately <strong>₹{((selectedVendor?.totalValue || 0) - (l1Vendor?.totalValue || 0)).toLocaleString()}</strong>.
-                                Please provide a justification for this deviation.
-                            </p>
+                <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-gray-700">Final Price After Negotiation</label>
+                    <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">₹</span>
+                        <Input
+                            value={pricing.after.toLocaleString()}
+                            readOnly
+                            className="h-10 pl-7 bg-gray-50/50 border-gray-200 font-bold text-lg text-primary"
+                        />
+                    </div>
+                </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="justification" className="text-amber-900">Justification / Reason for Deviation *</Label>
-                                <Textarea
-                                    id="justification"
-                                    placeholder="Explain why the L1 vendor was not selected..."
-                                    className="bg-white border-amber-300 focus:border-amber-500 min-h-[100px]"
-                                    value={justification}
-                                    onChange={(e) => setJustification(e.target.value)}
-                                    disabled={readOnly}
-                                />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                <div className="space-y-4 pt-4 border-t border-gray-100">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Supporting Documents</p>
+                    <div className="relative">
+                        <input
+                            type="file"
+                            id="compliance-upload"
+                            className="hidden"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                    Swal.fire({
+                                        title: 'Uploading...',
+                                        text: file.name,
+                                        timer: 1000,
+                                        showConfirmButton: false,
+                                        didOpen: () => Swal.showLoading()
+                                    });
+                                }
+                            }}
+                            disabled={readOnly}
+                        />
+                        <Button
+                            variant="outline"
+                            onClick={() => document.getElementById('compliance-upload')?.click()}
+                            disabled={readOnly}
+                            className="w-full h-10 border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 uppercase tracking-widest text-[10px]"
+                        >
+                            <Plus size={14} className="mr-2" /> Upload Document
+                        </Button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Finalized Supplier Summary Table */}
+            {selectedVendor && (
+                <div className="mt-6 p-4 bg-green-50 rounded-lg border-2 border-green-200">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        Finalized Supplier
+                    </h4>
+                    <div className="bg-white rounded-md overflow-hidden border border-green-200">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="bg-green-100 border-b border-green-200">
+                                    <th className="text-left py-2 px-4 text-xs font-bold text-gray-700">Vendor Code</th>
+                                    <th className="text-left py-2 px-4 text-xs font-bold text-gray-700">Vendor Name</th>
+                                    <th className="text-right py-2 px-4 text-xs font-bold text-gray-700">Per Unit</th>
+                                    <th className="text-right py-2 px-4 text-xs font-bold text-gray-700">Value</th>
+                                    <th className="text-right py-2 px-4 text-xs font-bold text-gray-700">Total Value</th>
+                                    <th className="text-left py-2 px-4 text-xs font-bold text-gray-700">Tax Code</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr className="border-b border-gray-100">
+                                    <td className="py-2 px-4 text-sm text-gray-900">
+                                        {selectedVendor.vendorCode || '-'}
+                                    </td>
+                                    <td className="py-2 px-4 text-sm text-gray-900">
+                                        {selectedVendor.vendorName}
+                                    </td>
+                                    <td className="py-2 px-4 text-sm text-gray-900 text-right">
+                                        ₹{selectedVendor.negotiatedQuote.toLocaleString()}
+                                    </td>
+                                    <td className="py-2 px-4 text-sm text-gray-900 text-right">
+                                        ₹{(selectedVendor.negotiatedQuote * lineItemQuantity).toLocaleString()}
+                                    </td>
+                                    <td className="py-2 px-4 text-sm text-right">
+                                        <strong className="text-green-700">
+                                            ₹{pricing.after.toLocaleString()}
+                                        </strong>
+                                    </td>
+                                    <td className="py-2 px-4 text-sm text-gray-900">
+                                        {selectedVendor.taxCode || '-'}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             )}
         </div>
     );

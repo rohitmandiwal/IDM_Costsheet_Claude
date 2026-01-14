@@ -3,7 +3,7 @@ const { sequelize } = require('../config/database');
 const { CostSheetLineItem } = require('./costSheetLineItemModel');
 const { Vendor } = require('./vendorModel');
 
-class VendorQuotation extends Model {}
+class VendorQuotation extends Model { }
 
 VendorQuotation.init(
   {
@@ -29,56 +29,40 @@ VendorQuotation.init(
       },
     },
     r0_quoted_per_unit: {
-        type: DataTypes.DECIMAL,
-        allowNull: true,
+      type: DataTypes.DECIMAL,
+      allowNull: true,
     },
     r0_value: {
-        type: DataTypes.DECIMAL,
-        allowNull: true,
+      type: DataTypes.DECIMAL,
+      allowNull: true,
     },
     r1_negotiated_per_unit: {
-        type: DataTypes.DECIMAL,
-        allowNull: true,
+      type: DataTypes.DECIMAL,
+      allowNull: true,
     },
     r1_value: {
-        type: DataTypes.DECIMAL,
-        allowNull: true,
+      type: DataTypes.DECIMAL,
+      allowNull: true,
     },
     gst: {
-        type: DataTypes.DECIMAL,
-        allowNull: true,
+      type: DataTypes.DECIMAL,
+      allowNull: true,
     },
     freight: {
-        type: DataTypes.DECIMAL,
-        allowNull: true,
+      type: DataTypes.DECIMAL,
+      allowNull: true,
     },
     other_charges: {
-        type: DataTypes.DECIMAL,
-        allowNull: true,
+      type: DataTypes.DECIMAL,
+      allowNull: true,
     },
     total_value: {
-        type: DataTypes.DECIMAL,
-        allowNull: true,
+      type: DataTypes.DECIMAL,
+      allowNull: true,
     },
     tax_code: {
-        type: DataTypes.STRING(10),
-        allowNull: true,
-    },
-    payment_terms: {
-        type: DataTypes.TEXT,
-        allowNull: true,
-    },
-    delivery_terms: {
-        type: DataTypes.TEXT,
-        allowNull: true,
-    },
-    exchange_rate: {
-        type: DataTypes.DECIMAL,
-        defaultValue: 1.0,
-    },
-    quote_validity_date: {
-        type: DataTypes.DATEONLY,
-        allowNull: true,
+      type: DataTypes.STRING(10),
+      allowNull: true,
     },
     created_at: {
       type: DataTypes.DATE,

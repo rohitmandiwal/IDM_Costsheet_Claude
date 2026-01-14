@@ -22,4 +22,9 @@ export const dashboardService = {
     const response = await apiClient.get<ApiResponse<AdminDashboardData>>('/api/dashboard/admin');
     return response.data.data;
   },
+
+  async getAuditLogs(params: { costSheetId?: number | string; userId?: number | string; activityType?: string }): Promise<any[]> {
+    const response = await apiClient.get<ApiResponse<any[]>>('/api/dashboard/audit-logs', { params });
+    return response.data.data;
+  }
 };

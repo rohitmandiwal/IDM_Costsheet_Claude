@@ -23,7 +23,8 @@ export function PRDetailsPage() {
         return savedState ? JSON.parse(savedState) : null;
     };
     const initialState = getInitialState();
-    const { prSummaries, costSheetId, requirementType } = initialState || {};
+    const { prSummaries, costSheetId, requirementType: rawReqType } = initialState || {};
+    const requirementType = rawReqType ? (rawReqType.toLowerCase().includes('non') || rawReqType.toLowerCase().includes('comm') ? 'non_technical' : 'technical') : 'technical';
 
     const [lineItems, setLineItems] = useState<PRLineItem[]>([]);
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -199,7 +200,7 @@ function InfoCard({ title, value, isNumeric = false, highlight = false }: {
         <div className="bg-white p-4 rounded-lg border border-gray-200">
             <p className="text-sm text-gray-500 mb-1">{title}</p>
             {isNumeric ? (
-                <p className={`text-3xl font-bold ${highlight ? 'text-blue-600' : 'text-gray-800'}`}>{value}</p>
+                <p className={`text-3xl font-bold ${highlight ? 'text-primary' : 'text-gray-800'}`}>{value}</p>
             ) : (
                 <p className="font-semibold text-gray-800 truncate">{value}</p>
             )}

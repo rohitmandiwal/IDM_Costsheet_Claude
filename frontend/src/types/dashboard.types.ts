@@ -32,6 +32,7 @@ export interface Approval {
   level: string;
   type: 'TECH' | 'COMM';
   daysAgo: number;
+  priority: 'Critical' | 'High' | 'Medium' | 'Low';
 }
 
 export interface InitiatorDashboardData {

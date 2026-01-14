@@ -19,6 +19,8 @@ const { PoRequest } = require('./poRequestModel');
 const { AuditLog } = require('./auditLogModel');
 const { Notification } = require('./notificationModel');
 const { SapPo } = require('./sapPoModel');
+const { SapPrQuotation } = require('./sapPrQuotationModel');
+const FinalizedDeal = require('./finalizedDealModel');
 
 // Define Associations
 
@@ -52,6 +54,10 @@ CostSheet.hasMany(CostSheetLineItem, { foreignKey: 'cost_sheet_id', as: 'cost_sh
 CostSheetLineItem.belongsTo(SapPrLineItem, { foreignKey: 'sap_line_item_id' });
 SapPrLineItem.hasMany(CostSheetLineItem, { foreignKey: 'sap_line_item_id', as: 'cost_sheet_line_items' });
 
+// SapPrLineItem and SapPrQuotation
+SapPrLineItem.hasMany(SapPrQuotation, { foreignKey: 'sap_line_item_id', as: 'sap_pr_quotations' });
+SapPrQuotation.belongsTo(SapPrLineItem, { foreignKey: 'sap_line_item_id' });
+
 // CostSheetLineItem and VendorQuotation
 CostSheetLineItem.hasMany(VendorQuotation, { foreignKey: 'line_item_id', as: 'vendor_quotations' });
 VendorQuotation.belongsTo(CostSheetLineItem, { foreignKey: 'line_item_id' });
@@ -67,6 +73,16 @@ Vendor.hasMany(VendorQuotation, { foreignKey: 'vendor_id', as: 'quotations' });
 // Vendor and SapVendor
 Vendor.belongsTo(SapVendor, { foreignKey: 'vendor_code' });
 SapVendor.hasMany(Vendor, { foreignKey: 'vendor_code' });
+
+// FinalizedDeal associations
+FinalizedDeal.belongsTo(CostSheetLineItem, { foreignKey: 'line_item_id', as: 'lineItem' });
+CostSheetLineItem.hasOne(FinalizedDeal, { foreignKey: 'line_item_id', as: 'finalized_deal' });
+
+FinalizedDeal.belongsTo(VendorQuotation, { foreignKey: 'vendor_quotation_id', as: 'quotation' });
+VendorQuotation.hasMany(FinalizedDeal, { foreignKey: 'vendor_quotation_id', as: 'finalized_deals' });
+
+FinalizedDeal.belongsTo(Vendor, { foreignKey: 'vendor_id', as: 'vendor' });
+Vendor.hasMany(FinalizedDeal, { foreignKey: 'vendor_id', as: 'finalized_deals' });
 
 // Deviation and User
 Deviation.belongsTo(User, { as: 'raisedByUser', foreignKey: 'raised_by' });
@@ -109,4 +125,6 @@ module.exports = {
   AuditLog,
   Notification,
   SapPo,
+  SapPrQuotation,
+  FinalizedDeal,
 };

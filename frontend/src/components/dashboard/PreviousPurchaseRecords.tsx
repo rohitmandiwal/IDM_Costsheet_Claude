@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { costSheetService } from '../../services/costSheet.service';
 import type { SapPo } from '../../types/sap.types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, History } from 'lucide-react';
 
 interface PreviousPurchaseRecordsProps {
     partCode: string;
@@ -28,8 +27,6 @@ export function PreviousPurchaseRecords({ partCode, vendorCodes }: PreviousPurch
                 setRecords(data);
             } catch (err) {
                 console.error('Failed to fetch previous purchase records', err);
-                // Don't show hard error to user to avoid disrupting workflow, just log it.
-                // Maybe show empty state or small warning.
                 setError('Failed to load records');
             } finally {
                 setLoading(false);
@@ -37,45 +34,68 @@ export function PreviousPurchaseRecords({ partCode, vendorCodes }: PreviousPurch
         };
 
         fetchRecords();
-    }, [partCode, JSON.stringify(vendorCodes)]); // Depend on vendorCodes deep equality
+    }, [partCode, JSON.stringify(vendorCodes)]);
 
     return (
-        <Card className="shadow-none border-gray-200">
-            <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-semibold text-gray-800">Previous Purchase Records</CardTitle>
-            </CardHeader>
-            <CardContent>
-                {loading ? (
-                    <div className="flex justify-center py-4">
-                        <Loader2 className="animate-spin text-gray-400" size={24} />
-                    </div>
-                ) : error ? (
-                    <p className="text-sm text-red-500 py-2">Unable to load purchase history.</p>
-                ) : records.length > 0 ? (
-                    <div className="space-y-3">
-                        {records.map((record) => (
-                            <div key={record.po_number} className="flex justify-between items-center p-3 bg-white rounded-md border border-gray-100 hover:border-gray-300 transition-colors shadow-sm">
-                                <div>
-                                    <p className="font-semibold text-gray-800 text-sm">{record.po_number}</p>
-                                    <p className="text-xs text-gray-500 flex gap-2">
-                                        <span>{record.vendor_name}</span>
-                                        <span className="text-gray-300">|</span>
-                                        <span>{record.vendor_code}</span>
-                                    </p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="font-bold text-gray-800 text-sm">₹{Number(record.unit_price).toLocaleString()}</p>
-                                    <p className="text-xs text-gray-500">{record.po_date}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <p className="text-sm text-gray-500 italic py-2">
-                        No previous purchase records found for this item from selected vendors.
-                    </p>
-                )}
-            </CardContent>
-        </Card>
+        <div className="bg-white p-6 rounded-lg border border-gray-200">
+            <div className="flex items-center gap-2 mb-6">
+                <History size={18} className="text-gray-400" />
+                <h3 className="font-semibold text-gray-800 text-lg">Previous Purchase Records</h3>
+            </div>
+
+            <div className="overflow-hidden border rounded-xl bg-gray-50/30">
+                <table className="w-full text-left border-collapse">
+                    <thead className="bg-gray-100/50">
+                        <tr>
+                            <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-widest">P.O. Number</th>
+                            <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-widest">Vendor</th>
+                            <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-widest text-right">Per Unit</th>
+                            <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-widest text-right">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {loading ? (
+                            <tr>
+                                <td colSpan={4} className="px-4 py-10 text-center">
+                                    <Loader2 className="animate-spin text-blue-500 mx-auto" size={24} />
+                                </td>
+                            </tr>
+                        ) : error ? (
+                            <tr>
+                                <td colSpan={4} className="px-4 py-6 text-center text-sm text-red-500">
+                                    Unable to load purchase history.
+                                </td>
+                            </tr>
+                        ) : records.length > 0 ? (
+                            records.map((record) => (
+                                <tr key={record.po_number} className="hover:bg-white transition-colors group">
+                                    <td className="px-4 py-4 text-sm font-black text-gray-900 font-mono tracking-tight group-hover:text-blue-600">
+                                        {record.po_number}
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-bold text-gray-800 truncate max-w-[200px]">{record.vendor_name}</span>
+                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">{record.vendor_code}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-4 text-sm font-black text-gray-900 text-right">
+                                        ₹ {Number(record.unit_price).toLocaleString()}
+                                    </td>
+                                    <td className="px-4 py-4 text-xs font-bold text-gray-500 text-right">
+                                        {new Date(record.po_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-')}
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-400 italic">
+                                    No previous purchase records found for this item from selected vendors.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     );
 }

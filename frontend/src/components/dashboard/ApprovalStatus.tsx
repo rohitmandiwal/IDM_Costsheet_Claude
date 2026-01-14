@@ -1,6 +1,4 @@
-import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { CheckCircle2, Clock, XCircle } from 'lucide-react';
 
 interface ApprovalLevel {
     level: number;
@@ -8,108 +6,65 @@ interface ApprovalLevel {
     status: 'pending' | 'approved' | 'rejected' | 'sent_back';
     approver_name?: string;
     comments?: string;
-    updated_at?: string;
 }
 
 interface ApprovalStatusProps {
     approvals?: ApprovalLevel[];
-    currentLevel?: number;
-    isPreview?: boolean; // True when showing dynamic calculation before submission
+    isPreview?: boolean;
 }
 
-const statusStyles = {
-    pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    approved: 'bg-green-100 text-green-800 border-green-200',
-    rejected: 'bg-red-100 text-red-800 border-red-200',
-    sent_back: 'bg-orange-100 text-orange-800 border-orange-200',
-};
-
 const roleDisplayNames: Record<string, string> = {
-    'approver_l1': 'IDM-Team Lead',
-    'approver_l2': 'IDM-Lead',
+    'approver_l1': 'IDM - Team Lead',
+    'approver_l2': 'IDM - Lead',
     'approver_l3': 'Head Sourcing & Supply Chain',
     'approver_l4': 'GTO/GCO',
     'approver_l5': 'CFO',
     'approver_l6': 'CEO',
 };
 
-export function ApprovalStatus({ approvals = [], currentLevel, isPreview = false }: ApprovalStatusProps) {
+export function ApprovalStatus({ approvals = [], isPreview = false }: ApprovalStatusProps) {
     if (approvals.length === 0) {
         return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Approval Status</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-sm text-gray-500">No approval chain defined yet.</p>
-                    <p className="text-xs text-gray-400 mt-2">Select a vendor to see the required approval levels based on total value.</p>
-                </CardContent>
-            </Card>
+            <div className="bg-white p-6 rounded-lg border border-gray-200">
+                <h3 className="font-semibold text-gray-800 text-lg mb-4">Approval Status</h3>
+                <p className="text-sm text-gray-500">No approval chain defined yet.</p>
+            </div>
         );
     }
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                    <span>Approval Status</span>
-                    {isPreview && (
-                        <span className="text-xs font-normal text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                            Preview
-                        </span>
-                    )}
-                </CardTitle>
+        <div className="bg-white p-6 rounded-lg border border-gray-200">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="font-semibold text-gray-800 text-lg">Approval Status</h3>
                 {isPreview && (
-                    <p className="text-xs text-gray-500 mt-1">
-                        This approval chain is calculated based on the current total value. It will be finalized upon submission.
-                    </p>
+                    <Badge variant="outline" className="text-blue-600 bg-blue-50 border-blue-100 font-bold">Preview Mode</Badge>
                 )}
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-3">
-                    {approvals.map((approval) => {
-                        const isCurrentLevel = approval.level === currentLevel;
-                        const statusIcon = approval.status === 'approved' ? (
-                            <CheckCircle2 size={16} className="text-green-600" />
-                        ) : approval.status === 'rejected' ? (
-                            <XCircle size={16} className="text-red-600" />
-                        ) : (
-                            <Clock size={16} className="text-yellow-600" />
-                        );
+            </div>
 
-                        return (
-                            <div
-                                key={approval.level}
-                                className={`flex items-center justify-between p-3 rounded-md border ${isCurrentLevel ? 'bg-blue-50 border-blue-300' : 'bg-gray-50'
-                                    }`}
-                            >
-                                <div className="flex items-center gap-4">
-                                    <span className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold ${isCurrentLevel ? 'bg-blue-200 text-blue-800' : 'bg-gray-200 text-gray-700'
-                                        }`}>
-                                        L{approval.level}
-                                    </span>
-                                    <div>
-                                        <p className="font-semibold text-gray-800">
-                                            {roleDisplayNames[approval.role] || approval.role}
-                                        </p>
-                                        <p className="text-sm text-gray-500 capitalize flex items-center gap-1">
-                                            {statusIcon}
-                                            {approval.status.replace('_', ' ')}
-                                            {approval.approver_name && ` - ${approval.approver_name}`}
-                                        </p>
-                                        {approval.comments && (
-                                            <p className="text-xs text-gray-600 mt-1 italic">"{approval.comments}"</p>
-                                        )}
-                                    </div>
+            <div className="space-y-3">
+                {approvals.map((approval) => {
+                    const displayRole = roleDisplayNames[approval.role] || approval.role;
+
+                    return (
+                        <div key={approval.level} className="flex items-center justify-between p-4 bg-orange-50/40 border border-orange-100/50 rounded-xl">
+                            <div className="flex items-center gap-5">
+                                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-orange-500 text-white font-black text-sm shadow-md shadow-orange-200">
+                                    L{approval.level}
                                 </div>
-                                <Badge className={statusStyles[approval.status]}>
-                                    {approval.status.replace('_', ' ')}
-                                </Badge>
+                                <div className="flex flex-col">
+                                    <span className="font-bold text-gray-800 text-base">{displayRole}</span>
+                                    <span className="text-sm text-gray-500 font-medium">
+                                        {approval.status === 'pending' ? 'Pending review' : (approval.approver_name || approval.status)}
+                                    </span>
+                                </div>
                             </div>
-                        );
-                    })}
-                </div>
-            </CardContent>
-        </Card>
+                            <Badge className="bg-gray-200 text-gray-700 border-none font-bold px-4 py-1.5 uppercase text-[10px] tracking-widest">
+                                {approval.status}
+                            </Badge>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
     );
 }

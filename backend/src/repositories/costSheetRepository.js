@@ -1,4 +1,4 @@
-const { CostSheet, CostSheetPr, CostSheetLineItem, SapPr, SapPrLineItem, VendorQuotation, User, SapVendor, Vendor, Deviation, SapPo } = require('../models');
+const { CostSheet, CostSheetPr, CostSheetLineItem, SapPr, SapPrLineItem, VendorQuotation, User, SapVendor, Vendor, Deviation, SapPo, FinalizedDeal } = require('../models');
 
 const createCostSheet = async (costSheetData) => {
   return await CostSheet.create(costSheetData);
@@ -58,6 +58,11 @@ const findCostSheetById = async (costSheetId) => {
               { model: User, as: 'raisedByUser', attributes: ['id', 'full_name'] },
               { model: User, as: 'approvedByUser', attributes: ['id', 'full_name'] }
             ]
+          },
+          {
+            model: FinalizedDeal,
+            as: 'finalized_deal',
+            include: [{ model: Vendor, as: 'vendor' }]
           }
         ]
       }

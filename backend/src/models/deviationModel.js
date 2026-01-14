@@ -2,13 +2,17 @@ const { DataTypes, Model } = require('sequelize');
 const { sequelize } = require('../config/database');
 
 const deviationTypes = [
-    'single_source',
-    'l2_supplier',
-    'l3_supplier',
-    'sob'
+  'price_increase',
+  'specification_change',
+  'urgent_requirement',
+  'limited_suppliers',
+  'quality_upgrade',
+  'currency_fluctuation',
+  'market_conditions',
+  'other'
 ];
 
-class Deviation extends Model {}
+class Deviation extends Model { }
 
 Deviation.init(
   {
@@ -26,8 +30,8 @@ Deviation.init(
       },
     },
     deviation_type: {
-        type: 'deviation_type', // Use the native PostgreSQL enum type
-        allowNull: false,
+      type: 'deviation_type', // Use the native PostgreSQL enum type
+      allowNull: false,
     },
     raised_by: {
       type: DataTypes.INTEGER,
@@ -38,16 +42,16 @@ Deviation.init(
       },
     },
     approved_by: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        references: {
-            model: 'users',
-            key: 'id',
-        },
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
     },
     remarks: {
-        type: DataTypes.TEXT,
-        allowNull: true,
+      type: DataTypes.TEXT,
+      allowNull: true,
     },
     created_at: {
       type: DataTypes.DATE,

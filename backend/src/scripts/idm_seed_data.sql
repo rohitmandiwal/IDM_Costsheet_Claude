@@ -106,6 +106,13 @@ INSERT INTO sap_pr_line_items (pr_number, line_item_number, part_code, descripti
 ('PR00003', 10, 'SRV-RACK-42U', '42U Server Rack', 5, 'PCS', 'P001', 120000),
 ('PR00004', 10, 'MKT-BANNERS', 'Promotional Banners', 200, 'PCS', 'P002', 2500);
 
+-- ============================
+-- SAP PR QUOTATIONS (Auto-populate reference)
+-- ============================
+INSERT INTO sap_pr_quotations (sap_line_item_id, vendor_code, vendor_name, quote_per_unit, tax_code, gst_rate, freight, other_charges) VALUES
+((SELECT id FROM sap_pr_line_items WHERE pr_number = 'PR00001' AND line_item_number = 10), 'V001', 'Tech Innovations Ltd.', 92000, 'GST18', 18, 500, 200),
+((SELECT id FROM sap_pr_line_items WHERE pr_number = 'PR00001' AND line_item_number = 10), 'V003', 'Industrial Components Inc.', 94000, 'GST18', 18, 1000, 500);
+
 
 -- ============================
 -- COST SHEETS & WORKFLOWS
@@ -140,9 +147,9 @@ INSERT INTO cost_sheet_line_items(cost_sheet_id, sap_line_item_id, status, final
 INSERT INTO vendor_quotations (line_item_id, vendor_id, r0_quoted_per_unit, r1_negotiated_per_unit, total_value, tax_code) VALUES
 (3, 1, 95000, 92000, 920000, 'GST18'), -- L1
 (3, 5, 96000, 94000, 940000, 'GST18');
--- Deviation (L2 supplier chosen)
+-- Deviation (Quality upgrade for better warranty)
 INSERT INTO deviations (line_item_id, deviation_type, raised_by, approved_by, remarks) VALUES
-(3, 'l2_supplier', 1, 3, 'Selected L2 supplier for better warranty terms.');
+(3, 'quality_upgrade', 1, 3, 'Selected vendor for better warranty terms and quality assurance.');
 -- Approvals
 INSERT INTO approvals (cost_sheet_id, line_item_id, level, approver_id, status, comments) VALUES
 (3, 3, 1, (SELECT id FROM users WHERE email = 'suresh.gupta@example.com'), 'approved', 'Approved based on deviation justification.'),

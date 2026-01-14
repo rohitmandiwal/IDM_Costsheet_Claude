@@ -22,6 +22,7 @@ router.delete('/vendor-quotations/:id', protect, requireRole('initiator', 'admin
 
 // Vendor Selection & Deviation
 router.put('/line-items/:lineItemId/select-vendor-and-deviation', protect, requireRole('initiator', 'admin'), costSheetController.selectVendorAndDeviation);
+router.put('/line-items/:lineItemId/finalized-deal', protect, requireRole('initiator', 'admin'), costSheetController.updateFinalizedDealTerms);
 
 // Cost Sheet Submission
 router.post('/:id/submit', protect, requireRole('initiator', 'admin'), costSheetController.submitCostSheet);

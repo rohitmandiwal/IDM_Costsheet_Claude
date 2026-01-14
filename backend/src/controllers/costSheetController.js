@@ -1,4 +1,4 @@
-const { createCostSheetFromPRs, createCostSheet, getCostSheetById, updateCostSheet, createVendorQuotation, updateVendorQuotation, deleteVendorQuotation, selectVendorAndDeviation, submitCostSheet, performApprovalAction, generatePoRequest } = require('../services/costSheetService');
+const { createCostSheetFromPRs, createCostSheet, getCostSheetById, updateCostSheet, createVendorQuotation, updateVendorQuotation, updateFinalizedDealTerms, deleteVendorQuotation, selectVendorAndDeviation, submitCostSheet, performApprovalAction, generatePoRequest } = require('../services/costSheetService');
 const logger = require('../utils/logger');
 
 const fetchPR = async (req, res) => {
@@ -127,6 +127,17 @@ const updateVendorQuotationByIdController = async (req, res) => {
     res.status(200).json({ success: true, data: updatedQuotation });
   } catch (error) {
     logger.error(`Error in updateVendorQuotationById controller: ${error.message}`);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const updateFinalizedDealTermsController = async (req, res) => {
+  try {
+    const { lineItemId } = req.params;
+    const updatedDeal = await updateFinalizedDealTerms(lineItemId, req.body);
+    res.status(200).json({ success: true, data: updatedDeal });
+  } catch (error) {
+    logger.error(`Error in updateFinalizedDealTerms controller: ${error.message}`);
     res.status(400).json({ success: false, message: error.message });
   }
 };
@@ -291,6 +302,7 @@ module.exports = {
   updateCostSheet: updateCostSheetController,
   createVendorQuotationForLineItem: createVendorQuotationForLineItemController,
   updateVendorQuotationById: updateVendorQuotationByIdController,
+  updateFinalizedDealTerms: updateFinalizedDealTermsController,
   deleteVendorQuotationById: deleteVendorQuotationByIdController,
   selectVendorAndDeviation: selectVendorAndDeviationController,
   submitCostSheet: submitCostSheetController,

@@ -154,6 +154,8 @@ const getApproverDashboardMetrics = async (userId, userRoles) => {
         type: cs.requirement_type === 'technical' ? 'TECH' : 'COMM',
         createdBy: cs.initiator ? cs.initiator.full_name : 'Unknown',
         level: `Level ${cs.current_approval_level}`,
+        daysAgo: Math.floor((Date.now() - new Date(cs.updated_at).getTime()) / (1000 * 60 * 60 * 24)),
+        priority: displayValue > 1000000 ? 'Critical' : displayValue > 500000 ? 'High' : 'Medium',
       };
     }),
     draftCostSheets: draftCostSheets.map((cs) => ({
@@ -310,7 +312,18 @@ const getAuditLogs = async (filters) => {
     whereClause.user_id = filters.userId;
   }
   if (filters.costSheetId) {
-    whereClause.cost_sheet_id = filters.costSheetId;
+    let csId = filters.costSheetId;
+    // If it's a cost sheet number (string starting with CS-), resolve the ID first
+    if (typeof csId === 'string' && csId.startsWith('CS-')) {
+      const cs = await CostSheet.findOne({ where: { cost_sheet_number: csId }, attributes: ['id'] });
+      if (cs) {
+        csId = cs.id;
+      } else {
+        // If cost sheet not found by number, audit logs for it definitely don't exist
+        return [];
+      }
+    }
+    whereClause.cost_sheet_id = csId;
   }
   if (filters.activityType) {
     whereClause.activity_type = filters.activityType;

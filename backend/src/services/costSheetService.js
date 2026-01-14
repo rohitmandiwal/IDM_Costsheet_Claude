@@ -17,6 +17,11 @@ const {
     findDeviationByLineItemId,
 } = require('../repositories/costSheetRepository');
 const {
+    upsertFinalizedDeal,
+    getFinalizedDealByLineItemId,
+    updateFinalizedDeal,
+} = require('../repositories/finalizedDealRepository');
+const {
     SapPr,
     SapPrLineItem,
     sequelize, // Import sequelize for transactions
@@ -130,13 +135,75 @@ const createCostSheet = async (initiatorId, prNumbers, selectedSapPrLineItemIds,
             await addPrToCostSheet(newCostSheet.id, prNumber, t);
         }
 
-        // Add selected line items to Cost Sheet
+        // Add selected line items to Cost Sheet and auto-populate quotes
+        const { SapPrLineItem, SapPrQuotation, SapVendor, Vendor, VendorQuotation } = require('../models');
+
         for (const sapLineItemId of selectedSapPrLineItemIds) {
-            await addLineItemToCostSheet({
+            const csLineItem = await addLineItemToCostSheet({
                 cost_sheet_id: newCostSheet.id,
                 sap_line_item_id: sapLineItemId,
                 status: 'pending',
             }, t);
+
+            // AUTO-POPULATE QUOTATIONS if they exist for the PR
+            const sapLineItem = await SapPrLineItem.findByPk(sapLineItemId, {
+                include: [{
+                    model: SapPrQuotation,
+                    as: 'sap_pr_quotations'
+                }],
+                transaction: t
+            });
+
+            if (sapLineItem && sapLineItem.sap_pr_quotations && sapLineItem.sap_pr_quotations.length > 0) {
+                logger.info(`Auto-populating ${sapLineItem.sap_pr_quotations.length} quotes for line item ${csLineItem.id}`);
+
+                for (const sapQuote of sapLineItem.sap_pr_quotations) {
+                    // Try to find if vendor exists in our internal vendors table by vendor_code
+                    let vendorId = null;
+                    if (sapQuote.vendor_code) {
+                        const existingVendor = await Vendor.findOne({
+                            where: { vendor_code: sapQuote.vendor_code },
+                            transaction: t
+                        });
+
+                        if (existingVendor) {
+                            vendorId = existingVendor.id;
+                        } else {
+                            // If vendor doesn't exist in 'vendors' but exists in 'sap_vendors', create it in 'vendors'
+                            const sapVendor = await SapVendor.findByPk(sapQuote.vendor_code, { transaction: t });
+                            if (sapVendor) {
+                                const newVendor = await Vendor.create({
+                                    vendor_code: sapVendor.vendor_code,
+                                    vendor_name: sapVendor.vendor_name,
+                                    vendor_type: 'existing'
+                                }, { transaction: t });
+                                vendorId = newVendor.id;
+                            } else {
+                                // If not even in sap_vendors, create a new one in 'vendors' table directly?
+                                // For now, if we have name, we can create as 'new' or just omit code
+                                const newVendor = await Vendor.create({
+                                    vendor_name: sapQuote.vendor_name || 'SAP Vendor',
+                                    vendor_type: 'new'
+                                }, { transaction: t });
+                                vendorId = newVendor.id;
+                            }
+                        }
+                    }
+
+                    await createVendorQuotationRepo({
+                        line_item_id: csLineItem.id,
+                        vendor_id: vendorId,
+                        r0_quoted_per_unit: sapQuote.quote_per_unit || 0,
+                        r1_negotiated_per_unit: sapQuote.quote_per_unit || 0, // Initially same
+                        gst: sapQuote.gst_rate || 18,
+                        freight: sapQuote.freight || 0,
+                        other_charges: sapQuote.other_charges || 0,
+                        tax_code: sapQuote.tax_code || '',
+                        exchange_rate: 1.0,
+                        quote_validity_date: sapQuote.valid_until || null
+                    }, t);
+                }
+            }
         }
 
         await t.commit();
@@ -257,14 +324,85 @@ const deleteVendorQuotation = async (id) => {
     }
 };
 
+/**
+ * Update finalized deal terms (payment, delivery, etc.)
+ * This should be used instead of updateVendorQuotation for deal-specific terms
+ */
+const updateFinalizedDealTerms = async (lineItemId, updateData) => {
+    const t = await sequelize.transaction();
+    try {
+        // Check if finalized deal exists
+        const existingDeal = await getFinalizedDealByLineItemId(lineItemId, t);
+
+        if (!existingDeal) {
+            throw new Error('No finalized deal found for this line item. Please select a vendor first.');
+        }
+
+        // Update the finalized deal
+        const updatedDeal = await updateFinalizedDeal(existingDeal.id, updateData, t);
+
+        await t.commit();
+        return updatedDeal;
+    } catch (error) {
+        await t.rollback();
+        logger.error(`Error updating finalized deal terms: ${error.message}`);
+        throw error;
+    }
+};
+
 const selectVendorAndDeviation = async (lineItemId, finalizedVendorId, deviationData, initiatorId) => {
     const t = await sequelize.transaction();
     try {
         // Update the CostSheetLineItem with the finalized vendor
         await updateCostSheetLineItem(lineItemId, { finalized_vendor_id: finalizedVendorId }, t);
 
-        // Handle deviation if provided
-        if (deviationData) {
+        // Create or update finalized deal
+        // Find the selected vendor's quotation to get pricing details
+        const lineItemDetails = await findLineItemsByCostSheetId(lineItemId);
+        if (lineItemDetails && lineItemDetails.length > 0) {
+            const currentLineItem = lineItemDetails[0];
+            const costSheetId = currentLineItem.cost_sheet_id;
+            const fullCostSheet = await findCostSheetByIdRepo(costSheetId);
+
+            // Find the line item in the full cost sheet
+            const lineItemWithQuotes = fullCostSheet.cost_sheet_line_items.find(
+                li => li.id === parseInt(lineItemId)
+            );
+
+            if (lineItemWithQuotes) {
+                // Find the selected vendor's quotation
+                const selectedQuote = lineItemWithQuotes.vendor_quotations.find(
+                    vq => vq.vendor_id === parseInt(finalizedVendorId)
+                );
+
+                if (selectedQuote) {
+                    // Calculate final pricing
+                    const qty = parseFloat(lineItemWithQuotes.SapPrLineItem?.qty || 0);
+                    const unitPrice = parseFloat(selectedQuote.r1_negotiated_per_unit || 0);
+                    const gst = parseFloat(selectedQuote.gst || 18);
+                    const freight = parseFloat(selectedQuote.freight || 0);
+                    const otherCharges = parseFloat(selectedQuote.other_charges || 0);
+
+                    const baseValue = unitPrice * qty;
+                    const taxValue = baseValue * (gst / 100);
+                    const totalValue = baseValue + taxValue + freight + otherCharges;
+
+                    // Create or update finalized deal
+                    await upsertFinalizedDeal({
+                        line_item_id: lineItemId,
+                        vendor_quotation_id: selectedQuote.id,
+                        vendor_id: finalizedVendorId,
+                        final_unit_price: unitPrice,
+                        final_total_value: totalValue,
+                        // Payment/delivery terms will be added later by user
+                    }, t);
+                }
+            }
+        }
+
+        // Handle deviation if provided AND has deviation_type (required field)
+        // Only save deviation if deviation_type is selected to avoid NOT NULL constraint violation
+        if (deviationData && deviationData.deviation_type) {
             const existingDeviation = await findDeviationByLineItemId(lineItemId);
             if (existingDeviation) {
                 await updateDeviation(existingDeviation.id, { ...deviationData, raised_by: initiatorId }, t);
@@ -554,6 +692,7 @@ module.exports = {
     updateCostSheet,
     createVendorQuotation,
     updateVendorQuotation,
+    updateFinalizedDealTerms,
     deleteVendorQuotation,
     selectVendorAndDeviation,
     submitCostSheet,

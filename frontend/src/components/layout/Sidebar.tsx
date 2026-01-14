@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, FileText, CheckCircle, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, FileText, CheckCircle, Settings, ChevronLeft } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -40,7 +40,7 @@ export function Sidebar({ className, isCollapsed, setIsCollapsed }: SidebarProps
   return (
     <aside
       className={cn(
-        'bg-white text-gray-800 transition-all duration-300 flex flex-col h-screen fixed inset-y-0 left-0 z-50',
+        'bg-white text-gray-800 transition-all duration-300 flex flex-col h-screen fixed inset-y-0 left-0 z-50 border-r border-gray-300',
         isCollapsed ? 'w-16' : 'w-56',
         className
       )}
@@ -50,10 +50,10 @@ export function Sidebar({ className, isCollapsed, setIsCollapsed }: SidebarProps
           className="flex items-center space-x-2 cursor-pointer"
           onClick={() => isCollapsed && setIsCollapsed(false)}
         >
-          <div className="w-8 h-8 bg-blue-700 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
             <FileText className="w-5 h-5 text-white" />
           </div>
-          {!isCollapsed && <span className="font-semibold text-lg text-blue-700">ProcureCS</span>}
+          {!isCollapsed && <span className="font-semibold text-lg text-primary">ProcureCS</span>}
         </div>
         {!isCollapsed && (
           <button
@@ -75,9 +75,9 @@ export function Sidebar({ className, isCollapsed, setIsCollapsed }: SidebarProps
             className={({ isActive }) =>
               cn(
                 'flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-colors',
-                'hover:bg-blue-100',
-                isActive && 'bg-blue-200 text-blue-800 font-medium',
-                !isActive && 'text-gray-800',
+                'hover:bg-gray-100',
+                isActive && 'bg-gray-200 text-primary font-bold',
+                !isActive && 'text-gray-600',
                 isCollapsed && 'justify-center px-2'
               )
             }

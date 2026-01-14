@@ -1,4 +1,5 @@
-import { ReactNode, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 
@@ -28,7 +29,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <TopBar />
         </div>
         {/* Main scrollable content, pushed down by TopBar height */}
-        <main className="flex-1 bg-gray-50 p-6 overflow-auto mt-16">
+        <main className="flex-1 bg-gray-50 mt-16">
           {children}
         </main>
       </div>
