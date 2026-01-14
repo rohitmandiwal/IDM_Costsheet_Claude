@@ -219,8 +219,8 @@ const UserTable = ({ users, editingId, onEdit, onUpdate, onDelete, onCancelEdit,
                                                                     });
                                                                 }}
                                                                 className={`px-3 py-1.5 rounded-full text-sm transition-colors ${isSelected
-                                                                        ? 'bg-blue-600 text-white'
-                                                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                                                    ? 'bg-blue-600 text-white'
+                                                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                                                                     }`}
                                                             >
                                                                 {ROLE_DISPLAY_NAMES[role]}
@@ -449,8 +449,8 @@ const AddUserModal = ({ onClose, onAdd, isLoading }: AddUserModalProps) => {
                                                 });
                                             }}
                                             className={`px-3 py-2 rounded-full text-sm transition-colors ${isSelected
-                                                    ? 'bg-blue-600 text-white'
-                                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                                ? 'bg-blue-600 text-white'
+                                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                                                 }`}
                                         >
                                             {ROLE_DISPLAY_NAMES[role]}

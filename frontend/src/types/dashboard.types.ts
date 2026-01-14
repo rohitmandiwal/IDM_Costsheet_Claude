@@ -3,17 +3,16 @@ export interface PurchaseRequisition {
   description: string;
   lineItems: number;
   plant: string;
-  type: 'Technical' | 'Commercial';
+  type: 'Technical' | 'Non-Technical';
   createdAt: string;
 }
 
 export interface DraftCostSheet {
-  id: string;
+  id: string | number;
   costSheetNumber: string;
   prs: string[];
   updatedAt: string;
   requirementType: 'Technical' | 'Non-Technical';
-  progress: number;
 }
 
 export interface UnifiedDashboardData {
@@ -32,7 +31,7 @@ export interface Approval {
   value: number;
   level: string;
   type: 'TECH' | 'COMM';
-  priority: 'High' | 'Medium' | 'Critical' | 'Low';
+  daysAgo: number;
 }
 
 export interface InitiatorDashboardData {
@@ -42,7 +41,7 @@ export interface InitiatorDashboardData {
 
 export interface ApproverDashboardData {
   pendingApprovals: Approval[];
-  draftCostSheets: CostSheet[];
+  draftCostSheets: DraftCostSheet[];
 }
 
 export interface AdminDashboardData {

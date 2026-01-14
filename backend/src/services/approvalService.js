@@ -1,4 +1,4 @@
-const { CostSheet, CostSheetLineItem, ValueBand, ApprovalRule, ApproverLevel, Deviation, User } = require('../models');
+const { CostSheet, CostSheetLineItem, ApprovalRule, ApproverLevel, Deviation, User } = require('../models');
 const { Op } = require('sequelize');
 const logger = require('../utils/logger');
 
@@ -31,26 +31,26 @@ const determineApprovalChain = async (costSheetId) => {
   const approvalRules = await ApprovalRule.findAll({
     where: {
       category: requirementType,
+      min_value: { [Op.lte]: totalValue },
+      [Op.or]: [
+        { max_value: { [Op.gte]: totalValue } },
+        { max_value: null },
+      ],
     },
     include: [
       {
-        model: ValueBand,
-        where: {
-          min_value: { [Op.lte]: totalValue },
-          [Op.or]: [
-            { max_value: { [Op.gte]: totalValue } },
-            { max_value: null },
-          ],
-        },
-        required: true, // Only include rules with a matching value band
-      },
-      {
         model: ApproverLevel,
         as: 'approver_levels',
-        order: [['level', 'ASC']],
       },
     ],
-    order: [[ValueBand, 'min_value', 'ASC']], // Order by value band to get the highest matching if multiple
+    order: [['min_value', 'ASC']], // Order by min_value to get the most specific match
+  });
+
+  // Ensure approver_levels within each rule are sorted (Sequelize include order can be tricky with associations sometimes)
+  approvalRules.forEach(rule => {
+    if (rule.approver_levels) {
+      rule.approver_levels.sort((a, b) => a.level - b.level);
+    }
   });
 
   let finalApprovalChain = [];
@@ -150,26 +150,26 @@ const calculateApprovalChainByValue = async (totalValue, requirementType) => {
   const approvalRules = await ApprovalRule.findAll({
     where: {
       category: requirementType,
+      min_value: { [Op.lte]: totalValue },
+      [Op.or]: [
+        { max_value: { [Op.gte]: totalValue } },
+        { max_value: null },
+      ],
     },
     include: [
       {
-        model: ValueBand,
-        where: {
-          min_value: { [Op.lte]: totalValue },
-          [Op.or]: [
-            { max_value: { [Op.gte]: totalValue } },
-            { max_value: null },
-          ],
-        },
-        required: true,
-      },
-      {
         model: ApproverLevel,
         as: 'approver_levels',
-        order: [['level', 'ASC']],
       },
     ],
-    order: [[ValueBand, 'min_value', 'ASC']],
+    order: [['min_value', 'ASC']],
+  });
+
+  // Ensure approver_levels within each rule are sorted
+  approvalRules.forEach(rule => {
+    if (rule.approver_levels) {
+      rule.approver_levels.sort((a, b) => a.level - b.level);
+    }
   });
 
   let finalApprovalChain = [];

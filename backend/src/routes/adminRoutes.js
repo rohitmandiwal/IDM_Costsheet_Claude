@@ -7,11 +7,7 @@ const { requireRole } = require('../middleware/roleMiddleware');
 router.use(protect);
 router.use(requireRole('admin'));
 
-// Value Bands
-router.post('/value-bands', adminController.createValueBand);
-router.get('/value-bands', adminController.getValueBands);
-router.put('/value-bands/:id', adminController.updateValueBand);
-router.delete('/value-bands/:id', adminController.deleteValueBand);
+
 
 // Approval Rules & Levels
 router.post('/approval-rules', adminController.createApprovalRule);

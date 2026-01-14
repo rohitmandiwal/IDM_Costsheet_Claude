@@ -14,32 +14,7 @@ import type {
 
 class AdminService {
   // ============================================================
-  // VALUE BANDS
-  // ============================================================
 
-  async getValueBands(): Promise<ValueBand[]> {
-    const response = await apiClient.get<ApiResponse<ValueBand[]>>('/api/admin/value-bands');
-    return response.data.data;
-  }
-
-  async getValueBandById(id: number): Promise<ValueBand> {
-    const response = await apiClient.get<ApiResponse<ValueBand>>(`/api/admin/value-bands/${id}`);
-    return response.data.data;
-  }
-
-  async createValueBand(data: CreateValueBandRequest): Promise<ValueBand> {
-    const response = await apiClient.post<ApiResponse<ValueBand>>('/api/admin/value-bands', data);
-    return response.data.data;
-  }
-
-  async updateValueBand(id: number, data: UpdateValueBandRequest): Promise<ValueBand> {
-    const response = await apiClient.put<ApiResponse<ValueBand>>(`/api/admin/value-bands/${id}`, data);
-    return response.data.data;
-  }
-
-  async deleteValueBand(id: number): Promise<void> {
-    await apiClient.delete(`/api/admin/value-bands/${id}`);
-  }
 
   // ============================================================
   // APPROVAL RULES

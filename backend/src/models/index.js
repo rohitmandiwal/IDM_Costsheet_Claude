@@ -1,7 +1,7 @@
 const { sequelize } = require('../config/database');
 const { User } = require('./userModel');
 const { RoleAssignment } = require('./roleAssignmentModel');
-const { ValueBand } = require('./valueBandModel');
+
 const { ApprovalRule } = require('./approvalRuleModel');
 const { ApproverLevel } = require('./approverLevelModel');
 const { SapPr } = require('./sapPrModel');
@@ -27,8 +27,7 @@ User.hasMany(RoleAssignment, { foreignKey: 'user_id', as: 'role_assignments' });
 RoleAssignment.belongsTo(User, { foreignKey: 'user_id' });
 
 // Approval Matrix
-ValueBand.hasMany(ApprovalRule, { foreignKey: 'value_band_id' });
-ApprovalRule.belongsTo(ValueBand, { foreignKey: 'value_band_id' });
+
 
 ApprovalRule.hasMany(ApproverLevel, { foreignKey: 'rule_id', as: 'approver_levels' });
 ApproverLevel.belongsTo(ApprovalRule, { foreignKey: 'rule_id' });
@@ -92,7 +91,7 @@ module.exports = {
   sequelize,
   User,
   RoleAssignment,
-  ValueBand,
+
   ApprovalRule,
   ApproverLevel,
   SapPr,

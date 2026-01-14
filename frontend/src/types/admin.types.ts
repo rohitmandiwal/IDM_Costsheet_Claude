@@ -5,27 +5,6 @@ import type { RoleType, CategoryType } from '../constants/admin.constants';
 // VALUE BANDS
 // ============================================================
 
-export interface ValueBand {
-  id: number;
-  name: string;
-  min_value: number;
-  max_value: number | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateValueBandRequest {
-  name: string;
-  min_value: number;
-  max_value: number | null;
-}
-
-export interface UpdateValueBandRequest {
-  name?: string;
-  min_value?: number;
-  max_value?: number | null;
-}
-
 // ============================================================
 // APPROVER LEVELS
 // ============================================================
@@ -50,22 +29,24 @@ export interface CreateApproverLevelRequest {
 
 export interface ApprovalRule {
   id: number;
-  value_band_id: number;
+  min_value: number;
+  max_value: number | null;
   category: CategoryType;
   created_at: string;
   updated_at: string;
   approver_levels?: ApproverLevel[];
-  value_band?: ValueBand;
 }
 
 export interface CreateApprovalRuleRequest {
-  value_band_id: number;
+  min_value: number;
+  max_value: number | null;
   category: CategoryType;
   approvers: CreateApproverLevelRequest[];
 }
 
 export interface UpdateApprovalRuleRequest {
-  value_band_id?: number;
+  min_value?: number;
+  max_value?: number | null;
   category?: CategoryType;
   approvers?: CreateApproverLevelRequest[];
 }

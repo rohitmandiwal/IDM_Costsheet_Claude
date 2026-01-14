@@ -1,9 +1,16 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../ui/Button';
-import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
+import { Input } from '../ui/Input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '../ui/Select';
+import { Plus, Trash2, Save, Loader2, AlertCircle } from 'lucide-react';
 import type {
     ApprovalRule,
-    ValueBand,
     CreateApprovalRuleRequest,
     CreateApproverLevelRequest,
 } from '../../types/admin.types';
@@ -18,368 +25,267 @@ import {
 
 interface ApprovalMatrixTabProps {
     approvalRules: ApprovalRule[];
-    valueBands: ValueBand[];
     onCreateRule: (data: CreateApprovalRuleRequest) => Promise<void>;
     onUpdateRule: (id: number, data: CreateApprovalRuleRequest) => Promise<void>;
     onDeleteRule: (id: number) => Promise<void>;
     isLoading: boolean;
 }
 
+interface MatrixRow {
+    id: number; // local generic ID for keying (could be negative for new rows)
+    ruleId: number | null; // null for new
+    minValue: number;
+    maxValue: number;
+    category: CategoryType | null;
+    levels: Record<number, RoleType | null>; // 1-6
+    isDeleted?: boolean;
+    isNew?: boolean;
+}
+
 export function ApprovalMatrixTab({
     approvalRules,
-    valueBands,
     onCreateRule,
     onUpdateRule,
     onDeleteRule,
-    isLoading,
+    isLoading: parentLoading,
 }: ApprovalMatrixTabProps) {
-    const [isAdding, setIsAdding] = useState(false);
-    const [editingId, setEditingId] = useState<number | null>(null);
-    const [formData, setFormData] = useState<{
-        value_band_id: number | null;
-        category: CategoryType | null;
-        levels: Record<number, RoleType | null>;
-    }>({
-        value_band_id: null,
-        category: null,
-        levels: {},
-    });
+    const [rows, setRows] = useState<MatrixRow[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    // Flatten rules for table display but keep them sorted by band and category
-    const sortedRules = useMemo(() => {
-        return [...approvalRules].sort((a, b) => {
-            const bandA = valueBands.find(v => v.id === a.value_band_id);
-            const bandB = valueBands.find(v => v.id === b.value_band_id);
-            if (!bandA || !bandB) return 0;
-            // Sort by min_value
-            if (bandA.min_value !== bandB.min_value) {
-                return bandA.min_value - bandB.min_value;
-            }
-            // Then by category (technical first usually preferred, or alphabetical)
-            return a.category.localeCompare(b.category);
-        });
-    }, [approvalRules, valueBands]);
-
-    const handleLevelChange = (level: number, role: RoleType | null) => {
-        setFormData((prev) => ({
-            ...prev,
-            levels: { ...prev.levels, [level]: role },
-        }));
-    };
-
-    const buildApproversArray = (): CreateApproverLevelRequest[] => {
-        const approvers: CreateApproverLevelRequest[] = [];
-        Object.entries(formData.levels).forEach(([level, role]) => {
-            if (role) {
-                approvers.push({
-                    level: Number(level),
-                    approver_role: role,
-                });
-            }
-        });
-        return approvers.sort((a, b) => a.level - b.level);
-    };
-
-    const handleAdd = async () => {
-        if (!formData.value_band_id || !formData.category) {
-            alert('Please select value band and category');
-            return;
-        }
-
-        const approvers = buildApproversArray();
-        if (approvers.length === 0) {
-            alert('Please assign at least one approver level');
-            return;
-        }
-
-        try {
-            await onCreateRule({
-                value_band_id: formData.value_band_id,
-                category: formData.category,
-                approvers,
+    // Initialize rows from props
+    useEffect(() => {
+        const initialRows: MatrixRow[] = approvalRules.map((rule) => {
+            const levelMap: Record<number, RoleType | null> = {};
+            // Initialize all levels 1-6 to null
+            for (let i = 1; i <= 6; i++) levelMap[i] = null;
+            // Fill from rule
+            rule.approver_levels?.forEach((l) => {
+                levelMap[l.level] = l.approver_role;
             });
-            setIsAdding(false);
-            setFormData({ value_band_id: null, category: null, levels: {} });
-        } catch (error: any) {
-            alert(error.message || 'Failed to create approval rule');
-        }
-    };
 
-    const handleEdit = (rule: ApprovalRule) => {
-        setEditingId(rule.id);
-        const levels: Record<number, RoleType | null> = {};
-        rule.approver_levels?.forEach((level) => {
-            levels[level.level] = level.approver_role;
+            return {
+                id: rule.id, // Use rule ID as stable key for existing
+                ruleId: rule.id,
+                minValue: rule.min_value,
+                maxValue: rule.max_value || 0,
+                category: rule.category,
+                levels: levelMap,
+                isNew: false,
+            };
         });
-        setFormData({
-            value_band_id: rule.value_band_id,
-            category: rule.category,
-            levels,
+
+        // Sort by Min Value then Category
+        initialRows.sort((a, b) => {
+            if (a.minValue !== b.minValue) return a.minValue - b.minValue;
+            return (a.category || '').localeCompare(b.category || '');
         });
+
+        setRows(initialRows);
+    }, [approvalRules]);
+
+    const addMatrixRow = () => {
+        const newId = Math.min(0, ...rows.map((r) => r.id)) - 1; // Negative ID for temp
+        const newRow: MatrixRow = {
+            id: newId,
+            ruleId: null,
+            minValue: 0,
+            maxValue: 0,
+            category: 'technical', // default
+            levels: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+            isNew: true,
+        };
+        setRows([...rows, newRow]);
     };
 
-    const handleUpdate = async (id: number) => {
-        if (!formData.value_band_id || !formData.category) {
-            alert('Please select value band and category');
-            return;
+    const deleteMatrixRow = (id: number) => {
+        if (confirm('Are you sure you want to delete this row? This action cannot be undone.')) {
+            // Find the row
+            const row = rows.find(r => r.id === id);
+            if (row && row.ruleId) {
+                if (row.ruleId) {
+                    onDeleteRule(row.ruleId).catch(err => {
+                        alert('Failed to delete rule: ' + err.message);
+                    });
+                }
+            }
+            setRows(rows.filter((r) => r.id !== id));
         }
+    };
 
-        const approvers = buildApproversArray();
-        if (approvers.length === 0) {
-            alert('Please assign at least one approver level');
-            return;
-        }
+    const updateRow = (id: number, updates: Partial<MatrixRow>) => {
+        setRows(rows.map((r) => (r.id === id ? { ...r, ...updates } : r)));
+    };
 
+    const handleLevelChange = (rowId: number, level: number, role: RoleType | null) => {
+        const row = rows.find((r) => r.id === rowId);
+        if (!row) return;
+        const newLevels = { ...row.levels, [level]: role };
+        updateRow(rowId, { levels: newLevels });
+    };
+
+    const saveMatrix = async () => {
+        setIsSaving(true);
+        setError(null);
         try {
-            await onUpdateRule(id, {
-                value_band_id: formData.value_band_id,
-                category: formData.category,
-                approvers,
-            });
-            setEditingId(null);
-            setFormData({ value_band_id: null, category: null, levels: {} });
-        } catch (error: any) {
-            alert(error.message || 'Failed to update approval rule');
+            // Process Rows (Create or Update)
+            await Promise.all(rows.map(async (row) => {
+                // Formatting Levels
+                const approvers: CreateApproverLevelRequest[] = Object.entries(row.levels)
+                    .filter(([_, role]) => role !== null)
+                    .map(([level, role]) => ({
+                        level: Number(level),
+                        approver_role: role!,
+                    }));
+
+                if (row.isNew) {
+                    // NEW ROW
+                    const ruleData: CreateApprovalRuleRequest = {
+                        min_value: row.minValue,
+                        max_value: row.maxValue === 0 ? null : row.maxValue,
+                        category: row.category!,
+                        approvers: approvers,
+                    };
+                    await onCreateRule(ruleData);
+                } else {
+                    // EXISTING ROW
+                    if (row.ruleId) {
+                        const ruleData: CreateApprovalRuleRequest = {
+                            min_value: row.minValue,
+                            max_value: row.maxValue === 0 ? null : row.maxValue,
+                            category: row.category!,
+                            approvers: approvers,
+                        };
+                        await onUpdateRule(row.ruleId, ruleData);
+                    }
+                }
+            }));
+
+            alert('Matrix saved successfully!');
+            // Force reload to sync everything cleanly
+            window.location.reload();
+
+        } catch (err: any) {
+            setError(err.message || 'Failed to save matrix');
+            console.error(err);
+        } finally {
+            setIsSaving(false);
         }
-    };
-
-    const handleDelete = async (id: number) => {
-        if (!confirm('Are you sure you want to delete this approval rule?')) {
-            return;
-        }
-
-        try {
-            await onDeleteRule(id);
-        } catch (error: any) {
-            alert(error.message || 'Failed to delete approval rule');
-        }
-    };
-
-    const cancelEdit = () => {
-        setEditingId(null);
-        setIsAdding(false);
-        setFormData({ value_band_id: null, category: null, levels: {} });
-    };
-
-    const getBandName = (bandId: number) => {
-        const band = valueBands.find(b => b.id === bandId);
-        return band ? band.name : 'Unknown Band';
-    };
-
-    const getBandRange = (bandId: number) => {
-        const band = valueBands.find(b => b.id === bandId);
-        if (!band) return '';
-        const min = band.min_value.toLocaleString('en-IN');
-        const max = band.max_value ? band.max_value.toLocaleString('en-IN') : '∞';
-        return `₹${min} - ₹${max}`;
     };
 
     return (
         <div>
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h3 className="text-lg font-semibold text-gray-800">Approval Matrix Configuration</h3>
-                    <p className="text-sm text-gray-500">Define approval workflows based on value bands and categories</p>
+                    <h3 className="text-lg font-bold text-gray-800">Approval Matrix Configuration</h3>
+                    <p className="text-sm text-gray-500 mt-1">Define approval workflows based on value bands and categories</p>
                 </div>
-                <Button onClick={() => setIsAdding(true)} disabled={isAdding || isLoading || editingId !== null}>
-                    <Plus size={16} className="mr-2" />
-                    Add Rule
-                </Button>
+                <div className="flex gap-3">
+                    <Button variant="outline" onClick={addMatrixRow} disabled={isSaving || parentLoading}>
+                        <Plus size={16} className="mr-2" />
+                        Add Rule
+                    </Button>
+                    <Button className="bg-black text-white hover:bg-gray-800" onClick={saveMatrix} disabled={isSaving || parentLoading}>
+                        {isSaving ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Save size={16} className="mr-2" />}
+                        Save Matrix
+                    </Button>
+                </div>
             </div>
 
-            {isAdding && (
-                <div className="mb-4 p-4 border border-blue-300 rounded-lg bg-blue-50">
-                    <h4 className="font-semibold mb-3">New Approval Rule</h4>
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Value Band</label>
-                            <select
-                                className="w-full p-2 border border-gray-300 rounded-md"
-                                value={formData.value_band_id || ''}
-                                onChange={(e) =>
-                                    setFormData({ ...formData, value_band_id: e.target.value ? Number(e.target.value) : null })
-                                }
-                            >
-                                <option value="">Select value band</option>
-                                {valueBands.map((band) => (
-                                    <option key={band.id} value={band.id}>
-                                        {band.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Category</label>
-                            <select
-                                className="w-full p-2 border border-gray-300 rounded-md"
-                                value={formData.category || ''}
-                                onChange={(e) => setFormData({ ...formData, category: (e.target.value as CategoryType) || null })}
-                            >
-                                <option value="">Select category</option>
-                                {ALL_CATEGORIES.map((cat) => (
-                                    <option key={cat} value={cat}>
-                                        {CATEGORY_DISPLAY_NAMES[cat]}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium mb-2">Approver Levels</label>
-                        <div className="grid grid-cols-6 gap-2">
-                            {[1, 2, 3, 4, 5, 6].map((level) => (
-                                <div key={level}>
-                                    <label className="block text-xs text-gray-600 mb-1">Level {level}</label>
-                                    <select
-                                        className="w-full p-2 border border-gray-300 rounded-md text-xs"
-                                        value={formData.levels[level] || ''}
-                                        onChange={(e) => handleLevelChange(level, (e.target.value as RoleType) || null)}
-                                    >
-                                        <option value="">-</option>
-                                        {APPROVER_ROLES.map((role) => (
-                                            <option key={role} value={role}>
-                                                {ROLE_DISPLAY_NAMES[role]}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="flex justify-end gap-2">
-                        <Button onClick={handleAdd} disabled={isLoading}>
-                            <Save size={14} className="mr-1" />
-                            Save Rule
-                        </Button>
-                        <Button variant="outline" onClick={cancelEdit}>
-                            <X size={14} className="mr-1" />
-                            Cancel
-                        </Button>
-                    </div>
+            {error && (
+                <div className="mb-4 p-4 bg-red-50 text-red-700 rounded-md flex items-center gap-2 border border-red-200">
+                    <AlertCircle size={20} />
+                    <span>{error}</span>
                 </div>
             )}
 
-            <div className="overflow-x-auto border rounded-lg shadow-sm">
-                <table className="w-full bg-white text-sm text-left">
-                    <thead className="bg-gray-50 text-gray-700 font-semibold border-b">
+            <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+                <table className="w-full text-sm text-left">
+                    <thead className="bg-[#fbfcff] text-gray-700 font-semibold border-b border-gray-200">
                         <tr>
-                            <th className="p-3 w-48">Value Band</th>
-                            <th className="p-3 w-32">Category</th>
-                            <th className="p-3">Level 1</th>
-                            <th className="p-3">Level 2</th>
-                            <th className="p-3">Level 3</th>
-                            <th className="p-3">Level 4</th>
-                            <th className="p-3">Level 5</th>
-                            <th className="p-3">Level 6</th>
-                            <th className="p-3 w-20 text-right">Actions</th>
+                            <th className="px-4 py-3 min-w-[200px]">Value Band (₹)</th>
+                            <th className="px-4 py-3 min-w-[140px]">Category</th>
+                            {[1, 2, 3, 4, 5, 6].map((l) => (
+                                <th key={l} className="px-4 py-3 min-w-[140px]">Level {l}</th>
+                            ))}
+                            <th className="px-4 py-3 text-center w-[80px]">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {sortedRules.map((rule) => {
-                            const isEditing = editingId === rule.id;
-                            const levelsMap: Record<number, string> = {};
-                            rule.approver_levels?.forEach(l => levelsMap[l.level] = ROLE_DISPLAY_NAMES[l.approver_role]);
-
-                            return (
-                                <tr key={rule.id} className="hover:bg-gray-50">
-                                    <td className="p-3 align-top">
-                                        <div className="font-medium text-gray-900">{getBandName(rule.value_band_id)}</div>
-                                        <div className="text-xs text-gray-500">{getBandRange(rule.value_band_id)}</div>
-                                    </td>
-
-                                    {isEditing ? (
-                                        <td className="p-3 align-top" colSpan={8}>
-                                            <div className="flex flex-col gap-4">
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div>
-                                                        <label className="block text-xs font-semibold mb-1">Category</label>
-                                                        <select
-                                                            className="w-full p-2 border border-gray-300 rounded text-sm"
-                                                            value={formData.category || ''}
-                                                            onChange={(e) => setFormData({ ...formData, category: (e.target.value as CategoryType) || null })}
-                                                        >
-                                                            {ALL_CATEGORIES.map((cat) => (
-                                                                <option key={cat} value={cat}>
-                                                                    {CATEGORY_DISPLAY_NAMES[cat]}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-xs font-semibold mb-1">Approver Levels</label>
-                                                    <div className="grid grid-cols-6 gap-2">
-                                                        {[1, 2, 3, 4, 5, 6].map((level) => (
-                                                            <div key={level}>
-                                                                <label className="block text-[10px] text-gray-500 mb-1">L{level}</label>
-                                                                <select
-                                                                    className="w-full p-1.5 border border-gray-300 rounded text-xs"
-                                                                    value={formData.levels[level] || ''}
-                                                                    onChange={(e) => handleLevelChange(level, (e.target.value as RoleType) || null)}
-                                                                >
-                                                                    <option value="">-</option>
-                                                                    {APPROVER_ROLES.map((role) => (
-                                                                        <option key={role} value={role}>
-                                                                            {ROLE_DISPLAY_NAMES[role]}
-                                                                        </option>
-                                                                    ))}
-                                                                </select>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex justify-end gap-2">
-                                                    <Button size="sm" onClick={() => handleUpdate(rule.id)} disabled={isLoading}>
-                                                        <Save size={14} className="mr-1" /> Save
-                                                    </Button>
-                                                    <Button size="sm" variant="outline" onClick={cancelEdit}>
-                                                        <X size={14} className="mr-1" /> Cancel
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </td>
-                                    ) : (
-                                        <>
-                                            <td className="p-3 align-top">
-                                                <span className={`px-2 py-1 text-xs rounded-full ${rule.category === 'technical' ? 'bg-indigo-50 text-indigo-700' : 'bg-emerald-50 text-emerald-700'
-                                                    }`}>
-                                                    {CATEGORY_DISPLAY_NAMES[rule.category]}
-                                                </span>
-                                            </td>
-                                            {[1, 2, 3, 4, 5, 6].map(level => (
-                                                <td key={level} className="p-3 align-top text-xs text-gray-600">
-                                                    {levelsMap[level] ? (
-                                                        <div className="bg-gray-100 px-2 py-1 rounded border border-gray-200 inline-block whitespace-nowrap">
-                                                            {levelsMap[level]}
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-gray-300">-</span>
-                                                    )}
-                                                </td>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                        {rows.map((row) => (
+                            <tr key={row.id} className="group hover:bg-gray-50">
+                                <td className="px-4 py-3">
+                                    <div className="flex items-center gap-2">
+                                        <Input
+                                            type="number"
+                                            value={row.minValue}
+                                            onChange={(e) => updateRow(row.id, { minValue: Number(e.target.value) })}
+                                            className="h-8 w-24 text-sm"
+                                            min={0}
+                                        />
+                                        <span className="text-gray-400">-</span>
+                                        <Input
+                                            type="number"
+                                            value={row.maxValue}
+                                            onChange={(e) => updateRow(row.id, { maxValue: Number(e.target.value) })}
+                                            className="h-8 w-24 text-sm"
+                                            min={0}
+                                        />
+                                    </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                    <Select
+                                        value={row.category || ''}
+                                        onValueChange={(val) => updateRow(row.id, { category: val as CategoryType })}
+                                    >
+                                        <SelectTrigger className="h-8 text-sm w-full">
+                                            <SelectValue placeholder="Select" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {ALL_CATEGORIES.map((cat) => (
+                                                <SelectItem key={cat} value={cat}>
+                                                    {CATEGORY_DISPLAY_NAMES[cat]}
+                                                </SelectItem>
                                             ))}
-                                            <td className="p-3 align-top text-right">
-                                                <div className="flex justify-end gap-1">
-                                                    <Button variant="ghost" size="icon" onClick={() => handleEdit(rule)} disabled={isLoading || editingId !== null}>
-                                                        <Edit2 size={14} className="text-gray-500" />
-                                                    </Button>
-                                                    <Button variant="ghost" size="icon" onClick={() => handleDelete(rule.id)} disabled={isLoading || editingId !== null}>
-                                                        <Trash2 size={14} className="text-red-500" />
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </>
-                                    )}
-                                </tr>
-                            );
-                        })}
-                        {sortedRules.length === 0 && (
+                                        </SelectContent>
+                                    </Select>
+                                </td>
+                                {[1, 2, 3, 4, 5, 6].map((level) => (
+                                    <td key={level} className="px-4 py-3">
+                                        <Select
+                                            value={row.levels[level] || 'none'}
+                                            onValueChange={(val) => handleLevelChange(row.id, level, val === 'none' ? null : (val as RoleType))}
+                                        >
+                                            <SelectTrigger className="h-8 text-xs w-full">
+                                                <SelectValue placeholder="-" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">-</SelectItem>
+                                                {APPROVER_ROLES.map((role) => (
+                                                    <SelectItem key={role} value={role}>
+                                                        {ROLE_DISPLAY_NAMES[role]}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </td>
+                                ))}
+                                <td className="px-4 py-3 text-center">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => deleteMatrixRow(row.id)}
+                                        className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                                    >
+                                        <Trash2 size={16} />
+                                    </Button>
+                                </td>
+                            </tr>
+                        ))}
+                        {rows.length === 0 && (
                             <tr>
                                 <td colSpan={9} className="p-8 text-center text-gray-500">
-                                    No approval rules configured. Click "Add Rule" to create one.
+                                    No approval rules configured. Click "Add Rule" to begin.
                                 </td>
                             </tr>
                         )}

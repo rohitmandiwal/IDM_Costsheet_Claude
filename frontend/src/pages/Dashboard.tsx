@@ -4,8 +4,9 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
-import { Clock, FileText, CheckCircle2, Search } from 'lucide-react';
+import { Clock, FileText, CheckCircle2, Search, Loader2 } from 'lucide-react';
 import { dashboardService } from '../services/dashboard.service';
+import { costSheetService } from '../services/costSheet.service';
 import type { UnifiedDashboardData } from '../types/dashboard.types';
 
 type RequirementType = 'All' | 'Technical' | 'Non-Technical';
@@ -13,6 +14,7 @@ type RequirementType = 'All' | 'Technical' | 'Non-Technical';
 export function Dashboard() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
+  const [isActionLoading, setIsActionLoading] = useState(false);
   const [dashboardData, setDashboardData] = useState<UnifiedDashboardData | null>(null);
   const [quickSearch, setQuickSearch] = useState('');
   const [requirementFilter, setRequirementFilter] = useState<RequirementType>('All');
@@ -41,8 +43,23 @@ export function Dashboard() {
     navigate('/pr-entry');
   };
 
-  const handleViewDetails = (prNumber: string, requirementType: 'Technical' | 'Non-Technical') => {
-    navigate('/pr-details', { state: { prs: [prNumber], requirementType } });
+  const handleViewDetails = async (prNumber: string, requirementType: 'Technical' | 'Non-Technical') => {
+    try {
+      setIsActionLoading(true);
+      const reqType = requirementType === 'Technical' ? 'technical' : 'non_technical';
+      const result = await costSheetService.fetchPRs(reqType, [prNumber]);
+      const newState = {
+        prSummaries: result.prSummaries,
+        costSheetId: result.costSheetId,
+        requirementType: requirementType
+      };
+      sessionStorage.setItem('prSummaryState', JSON.stringify(newState));
+      navigate('/pr-summary', { state: newState });
+    } catch (error) {
+      console.error('Failed to fetch PR details:', error);
+    } finally {
+      setIsActionLoading(false);
+    }
   };
 
   const handleViewApprovalDetails = (id: string, requirementType: 'TECH' | 'COMM') => {
@@ -86,6 +103,14 @@ export function Dashboard() {
 
   return (
     <div className="p-8 max-w-[1440px] mx-auto">
+      {isActionLoading && (
+        <div className="fixed inset-0 bg-white/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-xl shadow-xl border border-gray-100 flex flex-col items-center">
+            <Loader2 className="w-10 h-10 text-[#0B61FF] animate-spin mb-4" />
+            <p className="text-gray-900 font-medium">Fetching PR Details...</p>
+          </div>
+        </div>
+      )}
       <div className="mb-8">
         <h1 className="text-gray-900 mb-2">Dashboard</h1>
         <p className="text-gray-600">Overview of procurement activities and pending actions</p>
@@ -127,31 +152,28 @@ export function Dashboard() {
             <span className="text-sm text-gray-600 mr-2">Filter by Type:</span>
             <button
               onClick={() => setRequirementFilter('All')}
-              className={`px-4 py-2 rounded-full text-sm transition-colors ${
-                requirementFilter === 'All'
+              className={`px-4 py-2 rounded-full text-sm transition-colors ${requirementFilter === 'All'
                   ? 'bg-[#0B61FF] text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+                }`}
             >
               All
             </button>
             <button
               onClick={() => setRequirementFilter('Technical')}
-              className={`px-4 py-2 rounded-full text-sm transition-colors ${
-                requirementFilter === 'Technical'
+              className={`px-4 py-2 rounded-full text-sm transition-colors ${requirementFilter === 'Technical'
                   ? 'bg-[#0B61FF] text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+                }`}
             >
               Technical
             </button>
             <button
               onClick={() => setRequirementFilter('Non-Technical')}
-              className={`px-4 py-2 rounded-full text-sm transition-colors ${
-                requirementFilter === 'Non-Technical'
+              className={`px-4 py-2 rounded-full text-sm transition-colors ${requirementFilter === 'Non-Technical'
                   ? 'bg-[#0B61FF] text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+                }`}
             >
               Non-Technical
             </button>
@@ -195,7 +217,7 @@ export function Dashboard() {
                           {approval.type}
                         </Badge>
                         <Badge className="bg-[#FEF3C7] text-[#F39C12] border-[#F39C12]/20">
-                          {approval.level} - {approval.priority}
+                          {approval.level}
                         </Badge>
                       </div>
                     </div>
@@ -213,7 +235,7 @@ export function Dashboard() {
             <Button
               variant="ghost"
               className="w-full mt-4"
-              onClick={() => navigate('/approver-dashboard')}
+              onClick={() => navigate('/approvals')}
             >
               View All Approvals
             </Button>
@@ -256,18 +278,6 @@ export function Dashboard() {
                         </div>
                       </div>
                       <span className="text-sm text-gray-500">{new Date(draft.updatedAt).toLocaleDateString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-gray-600">Progress</span>
-                        <span className="text-gray-900">{draft.progress}%</span>
-                      </div>
-                      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[#0B61FF] transition-all"
-                          style={{ width: `${draft.progress}%` }}
-                        />
-                      </div>
                     </div>
                   </div>
                 ))
@@ -330,6 +340,7 @@ export function Dashboard() {
                             size="sm"
                             variant="ghost"
                             onClick={() => handleViewDetails(pr.prNumber, pr.type)}
+                            disabled={isActionLoading}
                           >
                             View Details
                           </Button>

@@ -1,25 +1,21 @@
 import { useState, useEffect } from 'react';
-import { Settings, Users, DollarSign, AlertCircle } from 'lucide-react';
+import { Settings, Users, AlertCircle } from 'lucide-react';
 import { Card } from '../components/ui/Card';
-import { ValueBandsTab } from '../components/admin/ValueBandsTab';
 import { ApprovalMatrixTab } from '../components/admin/ApprovalMatrixTab';
 import { UserAssignmentTab } from '../components/admin/UserAssignmentTab';
 import { adminService } from '../services/admin.service';
 import type {
-    ValueBand,
     ApprovalRule,
     User,
-    CreateValueBandRequest,
     CreateApprovalRuleRequest,
     CreateUserRequest,
     UpdateUserRequest,
 } from '../types/admin.types';
 
-type TabType = 'value-bands' | 'approval-matrix' | 'users';
+type TabType = 'approval-matrix' | 'users';
 
 export function AdminSettingsPage() {
-    const [activeTab, setActiveTab] = useState<TabType>('value-bands');
-    const [valueBands, setValueBands] = useState<ValueBand[]>([]);
+    const [activeTab, setActiveTab] = useState<TabType>('approval-matrix');
     const [approvalRules, setApprovalRules] = useState<ApprovalRule[]>([]);
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -34,53 +30,15 @@ export function AdminSettingsPage() {
         setIsLoading(true);
         setError(null);
         try {
-            const [bandsData, rulesData, usersData] = await Promise.all([
-                adminService.getValueBands(),
+            const [rulesData, usersData] = await Promise.all([
                 adminService.getApprovalRules(),
                 adminService.getUsers(),
             ]);
-            setValueBands(bandsData);
             setApprovalRules(rulesData);
             setUsers(usersData);
         } catch (err: any) {
             setError(err.message || 'Failed to load admin data');
             console.error('Failed to fetch admin data:', err);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // ============================================================
-    // VALUE BANDS HANDLERS
-    // ============================================================
-
-    const handleCreateValueBand = async (data: CreateValueBandRequest) => {
-        setIsLoading(true);
-        try {
-            const newBand = await adminService.createValueBand(data);
-            setValueBands([...valueBands, newBand]);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleUpdateValueBand = async (id: number, data: Partial<CreateValueBandRequest>) => {
-        setIsLoading(true);
-        try {
-            const updated = await adminService.updateValueBand(id, data);
-            setValueBands(valueBands.map((b) => (b.id === id ? updated : b)));
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleDeleteValueBand = async (id: number) => {
-        setIsLoading(true);
-        try {
-            await adminService.deleteValueBand(id);
-            setValueBands(valueBands.filter((b) => b.id !== id));
-            // Also remove associated approval rules
-            setApprovalRules(approvalRules.filter((r) => r.value_band_id !== id));
         } finally {
             setIsLoading(false);
         }
@@ -158,7 +116,7 @@ export function AdminSettingsPage() {
         <div className="bg-gray-50 min-h-screen p-8">
             <div className="max-w-7xl mx-auto">
                 <h1 className="text-2xl font-bold text-gray-800 mb-2">Admin Settings</h1>
-                <p className="text-sm text-gray-500 mb-6">Configure approval workflows, value bands, and user roles</p>
+                <p className="text-sm text-gray-500 mb-6">Configure approval workflows and user roles</p>
 
                 {error && (
                     <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
@@ -176,13 +134,7 @@ export function AdminSettingsPage() {
                     </div>
                 )}
 
-                <div className="flex border-b mb-6">
-                    <TabButton
-                        icon={<DollarSign size={16} />}
-                        label="Value Bands"
-                        isActive={activeTab === 'value-bands'}
-                        onClick={() => setActiveTab('value-bands')}
-                    />
+                <div className="flex border-b mb-6 gap-6">
                     <TabButton
                         icon={<Settings size={16} />}
                         label="Approval Matrix"
@@ -198,20 +150,9 @@ export function AdminSettingsPage() {
                 </div>
 
                 <Card className="p-6">
-                    {activeTab === 'value-bands' && (
-                        <ValueBandsTab
-                            valueBands={valueBands}
-                            onCreateValueBand={handleCreateValueBand}
-                            onUpdateValueBand={handleUpdateValueBand}
-                            onDeleteValueBand={handleDeleteValueBand}
-                            isLoading={isLoading}
-                        />
-                    )}
-
                     {activeTab === 'approval-matrix' && (
                         <ApprovalMatrixTab
                             approvalRules={approvalRules}
-                            valueBands={valueBands}
                             onCreateRule={handleCreateApprovalRule}
                             onUpdateRule={handleUpdateApprovalRule}
                             onDeleteRule={handleDeleteApprovalRule}
@@ -248,8 +189,8 @@ const TabButton = ({
     <button
         onClick={onClick}
         className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${isActive
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            ? 'border-blue-600 text-blue-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
     >
         {icon}

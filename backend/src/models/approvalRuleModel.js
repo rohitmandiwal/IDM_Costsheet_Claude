@@ -1,10 +1,10 @@
 const { DataTypes, Model } = require('sequelize');
 const { sequelize } = require('../config/database');
-const { ValueBand } = require('./valueBandModel');
+
 
 const categoryTypes = ['technical', 'non_technical'];
 
-class ApprovalRule extends Model {}
+class ApprovalRule extends Model { }
 
 ApprovalRule.init(
   {
@@ -13,13 +13,13 @@ ApprovalRule.init(
       autoIncrement: true,
       primaryKey: true,
     },
-    value_band_id: {
-      type: DataTypes.INTEGER,
+    min_value: {
+      type: DataTypes.DECIMAL,
       allowNull: false,
-      references: {
-        model: 'value_bands',
-        key: 'id',
-      },
+    },
+    max_value: {
+      type: DataTypes.DECIMAL,
+      allowNull: true,
     },
     category: {
       type: 'category_type', // Use the native PostgreSQL enum type

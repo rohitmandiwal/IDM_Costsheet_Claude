@@ -51,36 +51,29 @@ INSERT INTO role_assignments (user_id, role) VALUES
 -- APPROVAL MATRIX CONFIG
 -- ============================
 
-INSERT INTO value_bands (name, min_value, max_value) VALUES
-('Up to 10L', 0, 1000000),
-('10L to 1 Cr', 1000001, 10000000),
-('1 Cr to 2 Cr', 10000001, 20000000),
-('2 Cr to 5 Cr', 20000001, 50000000),
-('More than 5 Cr', 50000001, NULL);
-
 -- Rules for "Up to 10L"
-INSERT INTO approval_rules (value_band_id, category) VALUES
-((SELECT id FROM value_bands WHERE name = 'Up to 10L'), 'technical'),
-((SELECT id FROM value_bands WHERE name = 'Up to 10L'), 'non_technical');
+INSERT INTO approval_rules (min_value, max_value, category) VALUES
+(0, 1000000, 'technical'),
+(0, 1000000, 'non_technical');
 
 INSERT INTO approver_levels (rule_id, level, approver_role) VALUES
-((SELECT id FROM approval_rules WHERE value_band_id = (SELECT id FROM value_bands WHERE name = 'Up to 10L') AND category = 'technical'), 1, 'approver_l1'),
-((SELECT id FROM approval_rules WHERE value_band_id = (SELECT id FROM value_bands WHERE name = 'Up to 10L') AND category = 'technical'), 2, 'approver_l2'),
-((SELECT id FROM approval_rules WHERE value_band_id = (SELECT id FROM value_bands WHERE name = 'Up to 10L') AND category = 'non_technical'), 1, 'approver_l1'),
-((SELECT id FROM approval_rules WHERE value_band_id = (SELECT id FROM value_bands WHERE name = 'Up to 10L') AND category = 'non_technical'), 2, 'approver_l2');
+((SELECT id FROM approval_rules WHERE min_value = 0 AND category = 'technical'), 1, 'approver_l1'),
+((SELECT id FROM approval_rules WHERE min_value = 0 AND category = 'technical'), 2, 'approver_l2'),
+((SELECT id FROM approval_rules WHERE min_value = 0 AND category = 'non_technical'), 1, 'approver_l1'),
+((SELECT id FROM approval_rules WHERE min_value = 0 AND category = 'non_technical'), 2, 'approver_l2');
 
 -- Rules for "10L to 1 Cr"
-INSERT INTO approval_rules (value_band_id, category) VALUES
-((SELECT id FROM value_bands WHERE name = '10L to 1 Cr'), 'technical'),
-((SELECT id FROM value_bands WHERE name = '10L to 1 Cr'), 'non_technical');
+INSERT INTO approval_rules (min_value, max_value, category) VALUES
+(1000001, 10000000, 'technical'),
+(1000001, 10000000, 'non_technical');
 
 INSERT INTO approver_levels (rule_id, level, approver_role) VALUES
-((SELECT id FROM approval_rules WHERE value_band_id = (SELECT id FROM value_bands WHERE name = '10L to 1 Cr') AND category = 'technical'), 1, 'approver_l1'),
-((SELECT id FROM approval_rules WHERE value_band_id = (SELECT id FROM value_bands WHERE name = '10L to 1 Cr') AND category = 'technical'), 2, 'approver_l2'),
-((SELECT id FROM approval_rules WHERE value_band_id = (SELECT id FROM value_bands WHERE name = '10L to 1 Cr') AND category = 'technical'), 3, 'approver_l3'),
-((SELECT id FROM approval_rules WHERE value_band_id = (SELECT id FROM value_bands WHERE name = '10L to 1 Cr') AND category = 'non_technical'), 1, 'approver_l1'),
-((SELECT id FROM approval_rules WHERE value_band_id = (SELECT id FROM value_bands WHERE name = '10L to 1 Cr') AND category = 'non_technical'), 2, 'approver_l2'),
-((SELECT id FROM approval_rules WHERE value_band_id = (SELECT id FROM value_bands WHERE name = '10L to 1 Cr') AND category = 'non_technical'), 3, 'approver_l3');
+((SELECT id FROM approval_rules WHERE min_value = 1000001 AND category = 'technical'), 1, 'approver_l1'),
+((SELECT id FROM approval_rules WHERE min_value = 1000001 AND category = 'technical'), 2, 'approver_l2'),
+((SELECT id FROM approval_rules WHERE min_value = 1000001 AND category = 'technical'), 3, 'approver_l3'),
+((SELECT id FROM approval_rules WHERE min_value = 1000001 AND category = 'non_technical'), 1, 'approver_l1'),
+((SELECT id FROM approval_rules WHERE min_value = 1000001 AND category = 'non_technical'), 2, 'approver_l2'),
+((SELECT id FROM approval_rules WHERE min_value = 1000001 AND category = 'non_technical'), 3, 'approver_l3');
 
 
 -- ============================

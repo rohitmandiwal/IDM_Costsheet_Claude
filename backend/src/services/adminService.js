@@ -1,46 +1,20 @@
-const { ValueBand, ApprovalRule, ApproverLevel, User, RoleAssignment, sequelize } = require('../models');
+const { ApprovalRule, ApproverLevel, User, RoleAssignment, sequelize } = require('../models');
 const bcrypt = require('bcrypt');
-
-// Value Bands
-const createValueBand = async (bandData) => {
-  return ValueBand.create(bandData);
-};
-
-const getValueBands = async () => {
-  return ValueBand.findAll({ order: [['min_value', 'ASC']] });
-};
-
-const updateValueBand = async (id, bandData) => {
-  const valueBand = await ValueBand.findByPk(id);
-  if (!valueBand) {
-    throw new Error('Value band not found');
-  }
-  return valueBand.update(bandData);
-};
-
-const deleteValueBand = async (id) => {
-  const valueBand = await ValueBand.findByPk(id);
-  if (!valueBand) {
-    throw new Error('Value band not found');
-  }
-  // Deleting a value band will also delete associated approval rules and approver levels due to cascading
-  return valueBand.destroy();
-};
-
 
 // Approval Rules & Levels
 const createApprovalRule = async (ruleData) => {
-  const { value_band_id, category, approvers } = ruleData;
+  const { min_value, max_value, category, approvers } = ruleData;
 
   // Basic validation
-  if (!value_band_id || !category || !approvers || !Array.isArray(approvers)) {
-    throw new Error('Missing required fields for approval rule.');
+  // Note: min_value can be 0, so check for undefined/null, but 0 is falsey in JS
+  if (min_value === undefined || min_value === null || !category || !approvers || !Array.isArray(approvers)) {
+    throw new Error('Missing required fields for approval rule (min_value, category, approvers).');
   }
 
   // Use a transaction to ensure atomicity
   const t = await sequelize.transaction();
   try {
-    const rule = await ApprovalRule.create({ value_band_id, category }, { transaction: t });
+    const rule = await ApprovalRule.create({ min_value, max_value, category }, { transaction: t });
 
     for (const approver of approvers) {
       if (approver.level && approver.approver_role) {
@@ -69,15 +43,15 @@ const getApprovalRules = async () => {
   return ApprovalRule.findAll({
     include: [{
       model: ApproverLevel,
-      as: 'approver_levels', // Use the correct alias
+      as: 'approver_levels',
       order: [['level', 'ASC']]
     }],
-    order: [['value_band_id', 'ASC']]
+    order: [['min_value', 'ASC'], ['category', 'ASC']]
   });
 };
 
 const updateApprovalRule = async (id, ruleData) => {
-  const { approvers } = ruleData;
+  const { approvers, min_value, max_value, category } = ruleData;
 
   const t = await sequelize.transaction();
   try {
@@ -86,14 +60,18 @@ const updateApprovalRule = async (id, ruleData) => {
       throw new Error('Approval rule not found');
     }
 
-    // Update the simple properties of the rule
-    await rule.update({ category: ruleData.category, value_band_id: ruleData.value_band_id }, { transaction: t });
+    // Update rule properties
+    await rule.update({
+      category: category !== undefined ? category : rule.category,
+      min_value: min_value !== undefined ? min_value : rule.min_value,
+      max_value: max_value // Allow setting to null or new value
+    }, { transaction: t });
 
-    // Remove existing approver levels for this rule
-    await ApproverLevel.destroy({ where: { rule_id: id }, transaction: t });
-
-    // Add the new/updated approver levels
+    // Update Approvers if provided
     if (approvers && Array.isArray(approvers)) {
+      // Remove existing approver levels for this rule
+      await ApproverLevel.destroy({ where: { rule_id: id }, transaction: t });
+
       for (const approver of approvers) {
         if (approver.level && approver.approver_role) {
           await ApproverLevel.create({
@@ -357,10 +335,6 @@ const deleteUser = async (id) => {
 };
 
 module.exports = {
-  createValueBand,
-  getValueBands,
-  updateValueBand,
-  deleteValueBand,
   createApprovalRule,
   getApprovalRules,
   updateApprovalRule,

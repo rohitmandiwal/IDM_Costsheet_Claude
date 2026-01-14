@@ -1,41 +1,6 @@
 const adminService = require('../services/adminService');
 
-// Value Bands
-const createValueBand = async (req, res) => {
-  try {
-    const valueBand = await adminService.createValueBand(req.body);
-    res.status(201).json({ success: true, data: valueBand });
-  } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
-  }
-};
 
-const getValueBands = async (req, res) => {
-  try {
-    const valueBands = await adminService.getValueBands();
-    res.status(200).json({ success: true, data: valueBands });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const updateValueBand = async (req, res) => {
-  try {
-    const valueBand = await adminService.updateValueBand(req.params.id, req.body);
-    res.status(200).json({ success: true, data: valueBand });
-  } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
-  }
-};
-
-const deleteValueBand = async (req, res) => {
-  try {
-    await adminService.deleteValueBand(req.params.id);
-    res.status(200).json({ success: true, message: 'Value band deleted successfully.' });
-  } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
-  }
-};
 
 // Approval Rules
 const createApprovalRule = async (req, res) => {
@@ -125,10 +90,7 @@ const deleteUser = async (req, res) => {
 };
 
 module.exports = {
-  createValueBand,
-  getValueBands,
-  updateValueBand,
-  deleteValueBand,
+
   createApprovalRule,
   getApprovalRules,
   updateApprovalRule,
