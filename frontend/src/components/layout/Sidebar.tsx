@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, FileText, CheckCircle, Settings, ChevronLeft } from 'lucide-react';
+import { LayoutDashboard, FileText, CheckCircle, Settings, ChevronLeft /*, History */ } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -21,6 +21,7 @@ const allMenuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
   { icon: FileText, label: 'PR Entry', path: '/pr-entry' },
   { icon: CheckCircle, label: 'Approvals', path: '/approvals' },
+  //   { icon: History, label: 'History', path: '/history' },
   { icon: Settings, label: 'Admin', path: '/admin', adminOnly: true },
 ];
 

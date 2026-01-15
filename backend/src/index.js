@@ -6,6 +6,7 @@ const authRoutes = require('./routes/authRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const costSheetRoutes = require('./routes/costSheetRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const historyRoutes = require('./routes/historyRoutes');
 const { connectDB } = require('./config/database');
 
 const app = express();
@@ -23,6 +24,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/cost-sheets', costSheetRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/history', historyRoutes);
 
 app.get('/', (req, res) => {
   res.send('IDM Cost Sheet Backend API is running!');

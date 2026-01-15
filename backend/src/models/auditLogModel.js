@@ -4,7 +4,7 @@ const { User } = require('./userModel');
 const { CostSheet } = require('./costSheetModel');
 const { CostSheetLineItem } = require('./costSheetLineItemModel');
 
-class AuditLog extends Model {}
+class AuditLog extends Model { }
 
 AuditLog.init(
   {
@@ -22,28 +22,44 @@ AuditLog.init(
       },
     },
     cost_sheet_id: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        references: {
-            model: 'cost_sheets',
-            key: 'id',
-        },
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'cost_sheets',
+        key: 'id',
+      },
     },
     line_item_id: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        references: {
-            model: 'cost_sheet_line_items',
-            key: 'id',
-        },
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'cost_sheet_line_items',
+        key: 'id',
+      },
     },
     activity_type: {
-        type: DataTypes.STRING(100),
-        allowNull: false,
+      type: DataTypes.STRING(100),
+      allowNull: false,
     },
     description: {
-        type: DataTypes.TEXT,
-        allowNull: true,
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    comments: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    user_role: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+    },
+    resulting_status: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+    },
+    approval_level: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
     },
     created_at: {
       type: DataTypes.DATE,
@@ -57,8 +73,5 @@ AuditLog.init(
   }
 );
 
-AuditLog.belongsTo(User, { foreignKey: 'user_id' });
-AuditLog.belongsTo(CostSheet, { foreignKey: 'cost_sheet_id' });
-AuditLog.belongsTo(CostSheetLineItem, { foreignKey: 'line_item_id'});
-
+// Associations are centrally defined in models/index.js
 module.exports = { AuditLog };

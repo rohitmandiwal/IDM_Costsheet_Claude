@@ -116,7 +116,7 @@ const getApprovalChainForCostSheet = async (costSheetId) => {
     include: [
       {
         model: User,
-        as: 'approver',
+        as: 'approverUser',
         attributes: ['id', 'full_name']
       }
     ],
@@ -130,7 +130,7 @@ const getApprovalChainForCostSheet = async (costSheetId) => {
       level: chainItem.level,
       role: chainItem.role,
       status: approval ? approval.status : 'pending',
-      approver_name: approval?.approver?.full_name || null,
+      approver_name: approval?.approverUser?.full_name || null,
       comments: approval?.comments || null,
       updated_at: approval?.updated_at || null
     };

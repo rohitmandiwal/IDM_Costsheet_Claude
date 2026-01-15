@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, X, MessageSquare, FileText } from 'lucide-react';
+import { ArrowLeft, Check, X, MessageSquare, FileText, CheckCircle } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
@@ -8,18 +8,23 @@ import { Textarea } from '../components/ui/Textarea';
 import { costSheetService } from '../services/costSheet.service';
 import { dashboardService } from '../services/dashboard.service';
 import Swal from 'sweetalert2';
-import { History, TrendingUp, AlertCircle, Clock as ClockIcon } from 'lucide-react';
+import { History, TrendingUp, AlertCircle, Clock as ClockIcon, Edit } from 'lucide-react';
+import { ChangeRequestDialog } from '../components/ChangeRequestDialog';
+import { historyService } from '../services/history.service';
 
 export function ApproverPage() {
     const { costSheetId } = useParams<{ costSheetId: string }>();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState<'summary' | 'audit'>('summary');
+    const [activeTab, setActiveTab] = useState<'summary' | 'audit' | 'history'>('summary');
     const [costSheet, setCostSheet] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [comments, setComments] = useState('');
     const [actionLoading, setActionLoading] = useState(false);
     const [auditLogs, setAuditLogs] = useState<any[]>([]);
+    const [showChangeRequestDialog, setShowChangeRequestDialog] = useState(false);
+    const [timeline, setTimeline] = useState<any[]>([]);
+    const [changeRequests, setChangeRequests] = useState<any[]>([]);
 
     useEffect(() => {
         const fetchCostSheet = async () => {
@@ -31,8 +36,14 @@ export function ApproverPage() {
 
                 // Fetch audit logs as well using the numeric ID from the data
                 if (data && data.id) {
-                    const logs = await dashboardService.getAuditLogs({ costSheetId: data.id });
+                    const [logs, timelineData, changeRequestsData] = await Promise.all([
+                        dashboardService.getAuditLogs({ costSheetId: data.id }),
+                        historyService.getHistoryTimeline(data.id.toString()),
+                        historyService.getChangeRequests(data.id.toString())
+                    ]);
                     setAuditLogs(logs);
+                    setTimeline(timelineData);
+                    setChangeRequests(changeRequestsData);
                 }
             } catch (err) {
                 console.error(err);
@@ -116,6 +127,7 @@ export function ApproverPage() {
                                     <nav className="flex space-x-4">
                                         <button onClick={() => setActiveTab('summary')} className={`px-3 py-2 font-medium text-sm rounded-t-md ${activeTab === 'summary' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}>Summary View</button>
                                         <button onClick={() => setActiveTab('audit')} className={`px-3 py-2 font-medium text-sm rounded-t-md ${activeTab === 'audit' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}>Audit Trail</button>
+                                        <button onClick={() => setActiveTab('history')} className={`px-3 py-2 font-medium text-sm rounded-t-md ${activeTab === 'history' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}>History & Changes</button>
                                     </nav>
                                 </div>
 
@@ -224,6 +236,116 @@ export function ApproverPage() {
                                     </div>
                                 )}
 
+                                {activeTab === 'history' && (
+                                    <div className="space-y-6">
+                                        <div>
+                                            <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                                                <History size={18} className="text-blue-500" /> Complete History Timeline
+                                            </h3>
+                                            <div className="relative before:absolute before:left-4 before:top-0 before:bottom-0 before:w-0.5 before:bg-gray-200">
+                                                {timeline.length > 0 ? timeline.map((item: any, idx: number) => (
+                                                    <div key={idx} className="relative pl-12 pb-6">
+                                                        <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-white border-2 border-blue-500 flex items-center justify-center shadow-sm z-10">
+                                                            {item.action.includes('APPROVE') ? <CheckCircle size={14} className="text-green-500" /> :
+                                                                item.action.includes('REJECT') ? <X size={14} className="text-red-500" /> :
+                                                                    item.action.includes('CHANGE') ? <AlertCircle size={14} className="text-amber-500" /> :
+                                                                        <ClockIcon size={14} className="text-blue-500" />}
+                                                        </div>
+                                                        <div className={`p-4 rounded-lg border ${item.action.includes('APPROVE') ? 'bg-green-50 border-green-200' :
+                                                            item.action.includes('REJECT') ? 'bg-red-50 border-red-200' :
+                                                                item.action.includes('CHANGE') ? 'bg-amber-50 border-amber-200' :
+                                                                    'bg-blue-50 border-blue-200'
+                                                            }`}>
+                                                            <div className="flex items-start justify-between mb-2">
+                                                                <div>
+                                                                    <h4 className="font-semibold text-sm">{item.action.replace(/_/g, ' ')}</h4>
+                                                                    <p className="text-xs text-gray-600 mt-1">{new Date(item.timestamp).toLocaleString()}</p>
+                                                                </div>
+                                                                {item.level && <Badge variant="outline" className="text-xs">Level {item.level}</Badge>}
+                                                            </div>
+                                                            <p className="text-sm mb-2">{item.description}</p>
+                                                            {item.comments && (
+                                                                <div className="mt-2 p-2 bg-white bg-opacity-50 rounded border border-current border-opacity-20">
+                                                                    <p className="text-xs italic">"{item.comments}"</p>
+                                                                </div>
+                                                            )}
+                                                            {item.affectedFields && item.affectedFields.length > 0 && (
+                                                                <div className="mt-2 flex flex-wrap gap-1">
+                                                                    {item.affectedFields.map((field: string, i: number) => (
+                                                                        <Badge key={i} variant="secondary" className="text-xs">{field}</Badge>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                            <div className="flex items-center gap-2 mt-3 text-xs">
+                                                                <div className="w-5 h-5 bg-gray-200 rounded-full flex items-center justify-center text-[8px] font-bold">
+                                                                    {item.user?.charAt(0)}
+                                                                </div>
+                                                                <span className="font-medium">{item.user}</span>
+                                                                {item.userRole && (
+                                                                    <>
+                                                                        <span className="text-gray-400">•</span>
+                                                                        <Badge variant="secondary" className="text-xs">{item.userRole.replace(/_/g, ' ').toUpperCase()}</Badge>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )) : (
+                                                    <div className="text-center py-10 text-gray-400">
+                                                        <AlertCircle size={32} className="mx-auto mb-2 opacity-20" />
+                                                        <p>No history found for this cost sheet.</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {changeRequests.length > 0 && (
+                                            <div className="pt-6 border-t border-gray-200">
+                                                <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                                                    <AlertCircle size={18} className="text-amber-500" /> Change Requests
+                                                </h3>
+                                                <div className="space-y-3">
+                                                    {changeRequests.map((request: any) => (
+                                                        <div key={request.id} className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                                                            <div className="flex items-start justify-between mb-2">
+                                                                <div>
+                                                                    <h4 className="font-semibold text-sm text-amber-900">{request.requestType.replace(/_/g, ' ').toUpperCase()}</h4>
+                                                                    <p className="text-xs text-amber-700 mt-1">
+                                                                        By {request.requestedBy} on {new Date(request.requestedAt).toLocaleString()}
+                                                                    </p>
+                                                                </div>
+                                                                <Badge className={`text-xs ${request.status === 'resolved' ? 'bg-green-100 text-green-800' :
+                                                                    request.status === 'pending' ? 'bg-amber-100 text-amber-800' :
+                                                                        'bg-gray-100 text-gray-800'
+                                                                    }`}>
+                                                                    {request.status.toUpperCase()}
+                                                                </Badge>
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <div className="bg-white bg-opacity-50 p-2 rounded">
+                                                                    <p className="text-xs font-semibold text-amber-900">Reason:</p>
+                                                                    <p className="text-xs text-amber-800">{request.changeReason}</p>
+                                                                </div>
+                                                                <div className="bg-white bg-opacity-50 p-2 rounded">
+                                                                    <p className="text-xs font-semibold text-amber-900">Details:</p>
+                                                                    <p className="text-xs text-amber-800">{request.detailedComments}</p>
+                                                                </div>
+                                                                {request.affectedFields && request.affectedFields.length > 0 && (
+                                                                    <div className="flex flex-wrap gap-1">
+                                                                        {request.affectedFields.map((field: string, i: number) => (
+                                                                            <Badge key={i} variant="outline" className="text-xs bg-white">{field}</Badge>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                             </CardContent>
                         </Card>
                     </div>
@@ -277,6 +399,15 @@ export function ApproverPage() {
                                     </Button>
                                 </div>
 
+                                <Button
+                                    variant="outline"
+                                    className="w-full border-amber-300 text-amber-700 hover:bg-amber-50"
+                                    onClick={() => setShowChangeRequestDialog(true)}
+                                    disabled={actionLoading}
+                                >
+                                    <Edit size={16} className="mr-2" />Request Changes
+                                </Button>
+
                                 <Button variant="secondary" className="w-full" onClick={() => navigate(`/cost-sheet-editor`, { state: { costSheetId: costSheet.id, isApproverView: true } })}>
                                     <FileText size={16} className="mr-2" />View Detailed Cost Sheet
                                 </Button>
@@ -284,6 +415,15 @@ export function ApproverPage() {
                         </Card>
                     </div>
                 </div>
+
+                <ChangeRequestDialog
+                    isOpen={showChangeRequestDialog}
+                    onClose={() => setShowChangeRequestDialog(false)}
+                    costSheetId={costSheet.id.toString()}
+                    onSuccess={() => {
+                        navigate('/approvals');
+                    }}
+                />
             </div>
         </div>
     );

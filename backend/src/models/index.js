@@ -21,6 +21,7 @@ const { Notification } = require('./notificationModel');
 const { SapPo } = require('./sapPoModel');
 const { SapPrQuotation } = require('./sapPrQuotationModel');
 const FinalizedDeal = require('./finalizedDealModel');
+const { ChangeRequest } = require('./changeRequestModel');
 
 // Define Associations
 
@@ -89,8 +90,8 @@ Deviation.belongsTo(User, { as: 'raisedByUser', foreignKey: 'raised_by' });
 Deviation.belongsTo(User, { as: 'approvedByUser', foreignKey: 'approved_by' });
 
 // Approval and User
-Approval.belongsTo(User, { foreignKey: 'approver_id' });
-User.hasMany(Approval, { foreignKey: 'approver_id' });
+Approval.belongsTo(User, { foreignKey: 'approver_id', as: 'approverUser' });
+User.hasMany(Approval, { foreignKey: 'approver_id', as: 'approvals' });
 
 // CostSheet and Approval
 CostSheet.hasMany(Approval, { foreignKey: 'cost_sheet_id', as: 'approvals' });
@@ -102,6 +103,12 @@ AuditLog.belongsTo(CostSheet, { foreignKey: 'cost_sheet_id' });
 
 // PoRequest and CostSheet
 PoRequest.belongsTo(CostSheet, { foreignKey: 'cost_sheet_id' });
+
+// ChangeRequest associations
+ChangeRequest.belongsTo(User, { foreignKey: 'requested_by', as: 'requester' });
+ChangeRequest.belongsTo(User, { foreignKey: 'resolved_by', as: 'resolver' });
+ChangeRequest.belongsTo(CostSheet, { foreignKey: 'cost_sheet_id' });
+CostSheet.hasMany(ChangeRequest, { foreignKey: 'cost_sheet_id', as: 'change_requests' });
 
 module.exports = {
   sequelize,
@@ -127,4 +134,5 @@ module.exports = {
   SapPo,
   SapPrQuotation,
   FinalizedDeal,
+  ChangeRequest,
 };

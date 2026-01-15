@@ -11,6 +11,8 @@ import { CostSheetEditorPage } from './pages/CostSheetEditorPage';
 import { PRSummaryPage } from './pages/PRSummaryPage';
 import { ApproverDashboard } from './pages/ApproverDashboard';
 import { ApproverPage } from './pages/ApproverPage';
+import { HistoryPage } from './pages/HistoryPage';
+import { CostSheetHistoryPage } from './pages/CostSheetHistoryPage';
 
 function App() {
   return (
@@ -102,6 +104,28 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <CostSheetEditorPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/history"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <HistoryPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/history/:costSheetId"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <CostSheetHistoryPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }

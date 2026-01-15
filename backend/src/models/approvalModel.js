@@ -68,13 +68,5 @@ Approval.init(
   }
 );
 
-Approval.belongsTo(CostSheet, { foreignKey: 'cost_sheet_id' });
-CostSheet.hasMany(Approval, { foreignKey: 'cost_sheet_id' });
-
-Approval.belongsTo(CostSheetLineItem, { foreignKey: 'line_item_id' });
-CostSheetLineItem.hasMany(Approval, { foreignKey: 'line_item_id' });
-
-Approval.belongsTo(User, { foreignKey: 'approver_id', as: 'approver' });
-User.hasMany(Approval, { foreignKey: 'approver_id' });
-
+// Associations are centrally defined in models/index.js
 module.exports = { Approval };

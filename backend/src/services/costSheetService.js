@@ -520,6 +520,10 @@ const submitCostSheet = async (costSheetId, initiatorId, comments) => {
             cost_sheet_id: costSheetId,
             activity_type: 'SUBMIT_FOR_APPROVAL',
             description: `Cost sheet ${costSheet.cost_sheet_number} submitted for approval by initiator.`,
+            comments: comments,
+            user_role: 'initiator',
+            resulting_status: 'pending',
+            approval_level: firstApproverLevel.level,
         }, { transaction: t });
 
         await t.commit();
@@ -615,7 +619,9 @@ const performApprovalAction = async (costSheetId, approverId, action, comments, 
             activity_type: `Cost Sheet ${action.charAt(0).toUpperCase() + action.slice(1)}`, // e.g., 'Cost Sheet Approved'
             description: auditDescription,
             comments: comments,
-        }, t);
+            resulting_status: newCostSheetStatus,
+            approval_level: costSheet.current_approval_level,
+        }, { transaction: t });
 
         await t.commit();
         return findCostSheetByIdRepo(costSheetId);
